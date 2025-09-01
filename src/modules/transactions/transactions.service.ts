@@ -67,7 +67,7 @@ export class TransactionsService {
     const [transactions, total] = await Promise.all([
       this.transactionModel
         .find(filter)
-        .sort({ date: -1 })
+        .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit)
         .exec(),
@@ -113,7 +113,6 @@ export class TransactionsService {
     const previousAmount = existingTransaction.amount;
     const previousType = existingTransaction.type;
 
-    // CORRIGIDO: Normaliza a data se ela foi fornecida na atualização
     let normalizedDate = existingTransaction.date;
     if (updateTransactionDto.date) {
       normalizedDate = moment.utc(updateTransactionDto.date).startOf('day').toDate();
