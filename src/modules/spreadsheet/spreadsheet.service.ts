@@ -6,6 +6,8 @@ import { UpdateSpreadsheetDataDto } from './dto/update-spreadsheet-data.dto';
 import { CreateSpreadsheetDataDto } from './dto/create-spreadsheet-data.dto';
 import * as moment from 'moment';
 import { DailyData, SpreadsheetData, SpreadsheetDataDocument } from './schemas/spreadsheet.schema';
+import { TransactionsService } from '../transactions/transactions.service';
+import { TransactionType } from '../transactions/schemas/transaction.schema';
 
 const DEFAULT_MONTHS_TO_GENERATE = 10;
 const PRECISION_DECIMAL_PLACES = 2;
@@ -15,6 +17,7 @@ export class SpreadsheetService {
   constructor(
     @InjectModel(SpreadsheetData.name) private spreadsheetModel: Model<SpreadsheetDataDocument>,
     private eventEmitter: EventEmitter2,
+    private transactionsService: TransactionsService,
   ) {}
 
   async initializeUserSpreadsheets(userId: string): Promise<SpreadsheetData[]> {
@@ -228,14 +231,14 @@ export class SpreadsheetService {
     }>,
   ): Promise<SpreadsheetData> {
     let spreadsheet = await this.findByUserAndMonthOptional(userId, year, month);
-
+  
     if (!spreadsheet) {
       spreadsheet = await this.createEmptyMonthSpreadsheet(userId, year, month);
     }
-
+  
     const dayIndex = spreadsheet.dailyData.findIndex(dailyRecord => dailyRecord.day === day);
     let previousDayData: DailyData | null = null;
-
+  
     if (dayIndex >= 0) {
       previousDayData = { ...spreadsheet.dailyData[dayIndex] };
       Object.assign(spreadsheet.dailyData[dayIndex], {
@@ -257,11 +260,40 @@ export class SpreadsheetService {
       
       spreadsheet.dailyData.sort((a, b) => a.day - b.day);
     }
-
+  
     await this.recalculateMonthlyBalances(spreadsheet);
-
+  
     const savedSpreadsheet = await (spreadsheet as any).save();
-
+  
+    // Criar uma transação “other” para income/expenses editados diretamente na planilha
+    const targetDate = moment.utc([year, month - 1, day]).format('YYYY-MM-DD');
+  
+    if (dayData.income !== undefined) {
+      const amount = Number(dayData.income.toFixed(PRECISION_DECIMAL_PLACES));
+      if (amount > 0) {
+        await this.transactionsService.create(userId, {
+          type: TransactionType.INCOME,
+          category: 'other',
+          amount,
+          date: targetDate,
+          description: 'Criado pela edição da planilha',
+        } as any);
+      }
+    }
+  
+    if (dayData.expenses !== undefined) {
+      const amount = Number(dayData.expenses.toFixed(PRECISION_DECIMAL_PLACES));
+      if (amount > 0) {
+        await this.transactionsService.create(userId, {
+          type: TransactionType.EXPENSE,
+          category: 'other',
+          amount,
+          date: targetDate,
+          description: 'Criado pela edição da planilha',
+        } as any);
+      }
+    }
+  
     this.eventEmitter.emit('spreadsheet.day.updated', {
       userId,
       year,
@@ -270,11 +302,11 @@ export class SpreadsheetService {
       dayData: savedSpreadsheet.dailyData.find(d => d.day === day),
       previousDayData,
     });
-
+  
     if (!savedSpreadsheet) {
       throw new NotFoundException('Spreadsheet data not found');
     }
-
+  
     return savedSpreadsheet;
   }
 

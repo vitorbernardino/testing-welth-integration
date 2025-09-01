@@ -1,6 +1,6 @@
 // Configuração da API
 const API_BASE = 'http://localhost:3001/api/v1';
-const AUTH_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImpvYW8uc2lsdmFAZW1haWwuY29tIiwic3ViIjoiNjhhNjRmYTkzNmZmZDlkOThmZDBhZGRiIiwiaWF0IjoxNzU1NzI5ODk5LCJleHAiOjE3NTYzMzQ2OTl9.Qe0Gte0VTD_Gyi2QAiMYxZ4Wo2jNELwtFk8GSTL3OZs';
+const AUTH_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImpvYW8uc2lsdmFAZW1haWwuY29tIiwic3ViIjoiNjhiNWQ1NjRhZGI5YWZjYjdhYTk0Nzk2IiwiaWF0IjoxNzU2NzYwMDA4LCJleHAiOjE3NTczNjQ4MDh9.YvMlVM1KNnwI9N7YbJROK9Or2-b3DMLZQwCqeDX_1KU';
 
 // Estado global
 let currentMonth = new Date().getMonth() + 1;
@@ -484,6 +484,7 @@ function updateSummary(data) {
 }
 
 // Ações
+// Ações
 async function handleSubmitTransaction(e) {
     e.preventDefault();
     
@@ -492,6 +493,7 @@ async function handleSubmitTransaction(e) {
     const amountInput = document.getElementById('amount');
     const dateInput = document.getElementById('date');
     const descriptionInput = document.getElementById('description');
+    const isRecurringInput = document.getElementById('isRecurring');
     
     if (!typeSelect || !categorySelect || !amountInput || !dateInput) {
         showToast('error', 'Erro', 'Campos obrigatórios não encontrados');
@@ -510,6 +512,19 @@ async function handleSubmitTransaction(e) {
         date: dateInput.value,
         description: descriptionInput ? descriptionInput.value.trim() : ''
     };
+
+    // Recorrência mensal no mesmo dia da data selecionada
+    if (isRecurringInput && isRecurringInput.checked) {
+        const dateObj = new Date(dateInput.value);
+        // Usa UTC para evitar problemas de fuso
+        const dayOfMonth = dateObj.getUTCDate();
+        formData.isRecurring = true;
+        formData.recurringPattern = {
+            frequency: 'monthly',
+            dayOfMonth,
+            isActive: true
+        };
+    }
     
     if (formData.amount <= 0) {
         showToast('error', 'Erro', 'O valor deve ser maior que zero');
