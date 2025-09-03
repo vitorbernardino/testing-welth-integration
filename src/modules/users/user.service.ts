@@ -70,6 +70,27 @@ export class UsersService {
     return null;
   }
 
+  async getAuthState(userId: string): Promise<Pick<UserDocument, '_id' | 'refreshTokenHash' | 'refreshTokenExpiresAt'> | null> {
+    const user = await this.userModel.findById(userId, {
+      refreshTokenHash: 1,
+      refreshTokenExpiresAt: 1,
+    });
+    return user as any;
+  }
+
+  async setRefreshToken(userId: string, refreshTokenHash: string, expiresAt: Date): Promise<void> {
+    await this.userModel.findByIdAndUpdate(userId, {
+      refreshTokenHash,
+      refreshTokenExpiresAt: expiresAt,
+    });
+  }
+
+  async clearRefreshToken(userId: string): Promise<void> {
+    await this.userModel.findByIdAndUpdate(userId, {
+      $unset: { refreshTokenHash: '', refreshTokenExpiresAt: '' },
+    });
+  }
+
   private sanitizeUser(user: UserDocument): User {
     const { password, ...result } = user.toObject();
     return result;

@@ -19,6 +19,12 @@ export class User {
   @Prop({ default: true })
   isActive: boolean;
 
+  @Prop({ required: false })
+  refreshTokenHash?: string;
+
+  @Prop({ required: false })
+  refreshTokenExpiresAt?: Date;
+
   @Prop()
   createdAt: Date;
 
