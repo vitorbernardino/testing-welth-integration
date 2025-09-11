@@ -94,7 +94,7 @@ export class TransactionsService {
         // Mapeia os dados do Pluggy para o formato do CreateTransactionDto
         const createTransactionDto = {
           type: transaction.type,
-          category: transaction.category,
+          category: transaction.category || 'other',
           amount: transaction.amount,
           date: transaction.date,
           description: transaction.description,

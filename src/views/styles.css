@@ -62,6 +62,7 @@ body {
     box-shadow: 0 2px 10px rgba(0,0,0,0.1);
     margin-bottom: 30px;
     overflow: hidden;
+    border: 1px solid #e9ecef;
 }
 
 .section-header {
@@ -81,6 +82,165 @@ body {
     color: #333;
 }
 
+/* Estilos para seção da Pluggy */
+.pluggy-section {
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    color: white;
+    margin-bottom: 30px;
+}
+
+.pluggy-section .section-header {
+    background: rgba(255,255,255,0.1);
+    color: white;
+    border-bottom: 1px solid rgba(255,255,255,0.2);
+}
+
+.pluggy-section .section-header h2 {
+    color: white;
+}
+
+.pluggy-widget-container {
+    text-align: center;
+    padding: 30px 20px;
+}
+
+.pluggy-widget-placeholder {
+    background: rgba(255,255,255,0.1);
+    border-radius: 10px;
+    padding: 30px;
+    margin-bottom: 20px;
+    backdrop-filter: blur(10px);
+}
+
+.pluggy-widget-placeholder h3 {
+    margin-bottom: 15px;
+    font-size: 24px;
+}
+
+.pluggy-widget-placeholder p {
+    margin-bottom: 25px;
+    opacity: 0.9;
+    font-size: 16px;
+}
+
+.btn-pluggy {
+    background: rgba(255,255,255,0.2);
+    color: white;
+    border: 2px solid white;
+    padding: 15px 30px;
+    font-size: 16px;
+    font-weight: 600;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-family: inherit;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.btn-pluggy:hover:not(:disabled) {
+    background: white;
+    color: #4facfe;
+    transform: translateY(-2px);
+    box-shadow: 0 10px 20px rgba(255,255,255,0.3);
+}
+
+.btn-pluggy:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none !important;
+}
+
+.pluggy-status {
+    margin-top: 20px;
+    padding: 15px;
+    border-radius: 8px;
+    background: rgba(255,255,255,0.1);
+    display: none;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255,255,255,0.2);
+}
+
+.pluggy-status-info {
+    background: rgba(23, 162, 184, 0.2);
+    border-color: rgba(23, 162, 184, 0.3);
+}
+
+.pluggy-status-success {
+    background: rgba(40, 167, 69, 0.2);
+    border-color: rgba(40, 167, 69, 0.3);
+}
+
+.pluggy-status-error {
+    background: rgba(220, 53, 69, 0.2);
+    border-color: rgba(220, 53, 69, 0.3);
+}
+
+.connections-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+    margin-top: 20px;
+}
+
+.connection-card {
+    background: rgba(255,255,255,0.1);
+    border-radius: 8px;
+    padding: 20px;
+    text-align: left;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255,255,255,0.2);
+    transition: all 0.3s ease;
+}
+
+.connection-card:hover {
+    background: rgba(255,255,255,0.15);
+    transform: translateY(-2px);
+}
+
+.connection-card h4 {
+    margin-bottom: 10px;
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.connection-card p {
+    margin-bottom: 15px;
+    opacity: 0.9;
+    font-size: 14px;
+}
+
+.connection-status {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    margin-top: 10px;
+}
+
+.status-connected,
+.status-login_succeeded {
+    background: #28a745;
+    color: white;
+}
+
+.status-pending,
+.status-updating {
+    background: #ffc107;
+    color: #333;
+}
+
+.status-error,
+.status-login_error {
+    background: #dc3545;
+    color: white;
+}
+
 /* Buttons */
 .btn {
     padding: 10px 16px;
@@ -95,10 +255,17 @@ body {
     text-decoration: none;
     font-size: 14px;
     line-height: 1;
+    font-family: inherit;
 }
 
-.btn:hover {
+.btn:hover:not(:disabled) {
     transform: translateY(-1px);
+}
+
+.btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none !important;
 }
 
 .btn-primary {
@@ -106,7 +273,7 @@ body {
     color: white;
 }
 
-.btn-primary:hover {
+.btn-primary:hover:not(:disabled) {
     background: #1d4ed8;
 }
 
@@ -116,7 +283,7 @@ body {
     border: 1px solid #dee2e6;
 }
 
-.btn-secondary:hover {
+.btn-secondary:hover:not(:disabled) {
     background: #e9ecef;
 }
 
@@ -125,7 +292,7 @@ body {
     color: white;
 }
 
-.btn-danger:hover {
+.btn-danger:hover:not(:disabled) {
     background: #c82333;
 }
 
@@ -169,12 +336,23 @@ input, select {
     font-size: 14px;
     transition: border-color 0.2s ease;
     background: white;
+    font-family: inherit;
 }
 
 input:focus, select:focus {
     outline: none;
     border-color: #2563eb;
     box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+input[type="number"] {
+    -moz-appearance: textfield;
+}
+
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
 }
 
 /* Filters */
@@ -253,7 +431,7 @@ tbody tr:hover {
 
 .cell-input {
     width: 100%;
-    border: 2px solid #2563eb;
+    border: 2px solid #2563eb !important;
     padding: 10px;
     font-size: 14px;
     text-align: right;
@@ -280,6 +458,37 @@ tbody tr:hover {
 .transaction-type.expense {
     background: #f8d7da;
     color: #721c24;
+}
+
+/* Transaction sources */
+.transaction-source {
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    display: inline-block;
+}
+
+.transaction-source.manual {
+    background: #e3f2fd;
+    color: #1565c0;
+}
+
+.transaction-source.import {
+    background: #f3e5f5;
+    color: #7b1fa2;
+}
+
+.transaction-source.recurring {
+    background: #e8f5e8;
+    color: #2e7d32;
+}
+
+.transaction-source.banking {
+    background: #fff3e0;
+    color: #ef6c00;
 }
 
 /* Values */
@@ -351,6 +560,7 @@ tbody tr:hover {
     display: flex;
     align-items: center;
     justify-content: center;
+    font-family: inherit;
 }
 
 .pagination button:hover:not(:disabled) {
@@ -433,6 +643,10 @@ tbody tr:hover {
     border-left-color: #dc3545;
 }
 
+.toast.info {
+    border-left-color: #17a2b8;
+}
+
 .toast-title {
     font-weight: 600;
     margin-bottom: 5px;
@@ -467,6 +681,7 @@ tbody tr:hover {
     font-size: 48px;
     margin-bottom: 16px;
     opacity: 0.5;
+    display: block;
 }
 
 /* Responsive */
@@ -511,23 +726,124 @@ tbody tr:hover {
         min-width: 120px;
         font-size: 14px;
     }
+    
+    .pluggy-widget-container {
+        padding: 20px 10px;
+    }
+    
+    .pluggy-widget-placeholder {
+        padding: 20px;
+    }
+    
+    .pluggy-widget-placeholder h3 {
+        font-size: 20px;
+    }
+    
+    .pluggy-widget-placeholder p {
+        font-size: 14px;
+    }
+    
+    .btn-pluggy {
+        padding: 12px 20px;
+        font-size: 14px;
+    }
+    
+    .connections-list {
+        grid-template-columns: 1fr;
+        gap: 15px;
+    }
+    
+    .connection-card {
+        padding: 15px;
+    }
 }
 
-/* Melhorias visuais */
-.section {
-    border: 1px solid #e9ecef;
+/* Melhorias adicionais para a integração Pluggy */
+.pluggy-section {
+    position: relative;
+    overflow: hidden;
 }
 
-.btn {
-    font-family: inherit;
+.pluggy-section::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse"><path d="M 10 0 L 0 0 0 10" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="0.5"/></pattern></defs><rect width="100" height="100" fill="url(%23grid)"/></svg>');
+    opacity: 0.3;
+    pointer-events: none;
 }
 
-input[type="number"] {
-    -moz-appearance: textfield;
+.pluggy-widget-container {
+    position: relative;
+    z-index: 1;
 }
 
-input[type="number"]::-webkit-outer-spin-button,
-input[type="number"]::-webkit-inner-spin-button {
-    -webkit-appearance: none;
-    margin: 0;
+/* Animações para feedback visual */
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
+.btn-pluggy:active {
+    animation: pulse 0.3s ease;
+}
+
+.connection-card {
+    animation: fadeInUp 0.5s ease;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Estados de loading para conexões */
+.connections-loading {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 40px;
+    color: rgba(255,255,255,0.7);
+}
+
+.connections-loading .spinner {
+    width: 30px;
+    height: 30px;
+    border-width: 3px;
+    margin-right: 15px;
+}
+
+/* Melhorias de acessibilidade */
+.btn-pluggy:focus,
+.btn:focus {
+    outline: 2px solid rgba(255,255,255,0.5);
+    outline-offset: 2px;
+}
+
+.connection-card:focus {
+    outline: 2px solid rgba(255,255,255,0.5);
+    outline-offset: 2px;
+}
+
+/* Estilos para diferentes estados de conexão */
+.connection-card.status-connected {
+    border-left: 4px solid #28a745;
+}
+
+.connection-card.status-pending {
+    border-left: 4px solid #ffc107;
+}
+
+.connection-card.status-error {
+    border-left: 4px solid #dc3545;
 }

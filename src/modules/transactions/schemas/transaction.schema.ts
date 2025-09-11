@@ -69,7 +69,7 @@ export class Transaction {
   @Prop()
   categoryId?: string;
 
-  @Prop({ required: true })
+  @Prop({ required: false, default: 'other' })
   category: string;
 
   @Prop({ required: true })

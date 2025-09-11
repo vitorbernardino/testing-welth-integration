@@ -29,6 +29,7 @@ export class CreateTransactionDto {
   type: string;
 
   @IsString()
+  @IsOptional() 
   category: PluggyTransaction['category'];
 
   @IsNumber()
