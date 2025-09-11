@@ -1,13 +1,17 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import { EventEmitter2 } from '@nestjs/event-emitter';
-import { Transaction, TransactionDocument, TransactionType } from './schemas/transaction.schema';
+import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
+import { Transaction, TransactionDocument } from './schemas/transaction.schema';
 import { CreateTransactionDto } from './dto/create-transaction.dto';
 import { FilterTransactionsDto } from './dto/filter-transaction.dto';
 import { UpdateTransactionDto } from './dto/update-transaction.dto';
 import { PaginatedResponse } from 'src/common/interfaces/api-response.interface';
 import * as moment from 'moment';
+import { PluggyClient } from '../pluggy/clients/pluggy.client';
+import { ConnectionRepository } from '../pluggy/repositories/connection.repository';
+import { WebhookPayloadTransaction } from '../pluggy/types/webhook.body';
+import { Transaction as PluggyTransaction } from 'pluggy-sdk';
 
 const DEFAULT_RECENT_TRANSACTIONS_LIMIT = 5;
 const DEFAULT_MONTHLY_AVERAGE_MONTHS = 6;
@@ -16,8 +20,135 @@ const DEFAULT_MONTHLY_AVERAGE_MONTHS = 6;
 export class TransactionsService {
   constructor(
     @InjectModel(Transaction.name) private transactionModel: Model<TransactionDocument>,
+    private pluggyClient: PluggyClient,
+    private connectionRepository: ConnectionRepository,
     private eventEmitter: EventEmitter2,
   ) {}
+
+  @OnEvent('transactions/created')
+  async onTransactionsCreated(payload: WebhookPayloadTransaction) {
+    const connection = await this.connectionRepository.findOne({
+      itemId: payload.itemId,
+    });
+
+    if (!connection) {
+      console.error(`❌ Conexão não encontrada para itemId: ${payload.itemId}`);
+      return;
+    }
+
+    const { results: transactions } = await this.pluggyClient
+      .instance()
+      .fetchTransactions(payload.accountId, {
+        createdAtFrom: payload.transactionsCreatedAtFrom,
+      });
+
+    await this.saveTransactions(
+      payload.itemId,
+      connection.userId.toString(),
+      transactions,
+    );
+  }
+
+  @OnEvent('transactions/updated')
+  async onTransactionsUpdated(payload: WebhookPayloadTransaction) {
+    const connection = await this.connectionRepository.findOne({
+      itemId: payload.itemId,
+    });
+
+    if (!connection) {
+      console.error(`❌ Conexão não encontrada para itemId: ${payload.itemId}`);
+      return;
+    }
+
+    const { results: transactions } = await this.pluggyClient
+      .instance()
+      .fetchTransactions(payload.accountId, {
+        ids: payload.transactionIds,
+      });
+
+    await this.saveTransactions(
+      payload.itemId,
+      connection.userId.toString(),
+      transactions,
+    );
+  }
+
+  @OnEvent('transactions/deleted')
+  async onTransactionDeleted(payload: WebhookPayloadTransaction) {
+    await this.transactionModel.deleteMany({
+      where: { externalId: payload.transactionIds },
+    });
+  }
+
+  private async saveTransactions(
+    itemId: string,
+    userId: string,
+    transactions: PluggyTransaction[], // PluggyTransaction[] type from pluggy-sdk
+  ) {
+    console.log(`💾 Salvando ${transactions.length} transações para itemId: ${itemId}`);
+    
+    const savedTransactions: Transaction[] = [];
+  
+    for (const transaction of transactions) {
+      try {
+        // Mapeia os dados do Pluggy para o formato do CreateTransactionDto
+        const createTransactionDto = {
+          type: transaction.type,
+          category: transaction.category,
+          amount: transaction.amount,
+          date: transaction.date,
+          description: transaction.description,
+          // Campos específicos do Pluggy
+          externalId: transaction.id,
+          itemId,
+          status: transaction.status,
+          currencyCode: transaction.currencyCode,
+          categoryId: transaction.categoryId,
+          accountId: transaction.accountId,
+          source: 'import',
+        };
+  
+        // Verifica se já existe uma transação com este externalId
+        const existingTransaction = await this.transactionModel.findOne({
+          externalId: transaction.id,
+        });
+  
+        if (existingTransaction) {
+          console.log(`⚠️ Transação ${transaction.id} já existe, atualizando...`);
+          
+          // Atualiza a transação existente
+          const updatedTransaction = await this.update(
+            existingTransaction._id.toString(),
+            userId,
+            {
+              status: transaction.status,
+              description: transaction.description,
+              amount: transaction.amount,
+              date: transaction.date,
+              category: transaction.category || '',
+              currencyCode: transaction.currencyCode,
+            }
+          );
+          
+          savedTransactions.push(updatedTransaction);
+        } else {
+          // Cria nova transação usando o método create existente
+          const savedTransaction = await this.create(userId, createTransactionDto);
+          savedTransactions.push(savedTransaction);
+        }
+  
+      } catch (error) {
+        console.error(`❌ Erro ao salvar transação ${transaction.id}:`, error.message);
+      }
+    }
+  
+    console.log(`✅ ${savedTransactions.length} transações processadas com sucesso`);
+  
+    return {
+      saved: savedTransactions,
+      total: transactions.length,
+    };
+  }
 
   async create(userId: string, createTransactionDto: CreateTransactionDto): Promise<Transaction> {
     console.log(`💰 Criando transação: ${createTransactionDto.type} - R$ ${createTransactionDto.amount} em ${createTransactionDto.date}`);
@@ -287,7 +418,7 @@ export class TransactionsService {
       {
         $match: {
           userId: new Types.ObjectId(userId),
-          type: TransactionType.EXPENSE,
+          type: 'expense',
           date: {
             $gte: startDate,
             $lte: endDate,

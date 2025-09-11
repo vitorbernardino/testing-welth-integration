@@ -3,30 +3,6 @@ import { Document, Types } from 'mongoose';
 
 export type TransactionDocument = Transaction & Document;
 
-export enum TransactionType {
-  INCOME = 'income',
-  EXPENSE = 'expense',
-}
-
-export enum IncomeCategory {
-  SALARY = 'salary',
-  FREELANCE = 'freelance',
-  SALES = 'sales',
-  INVESTMENTS = 'investments',
-  OTHER = 'other',
-}
-
-export enum ExpenseCategory {
-  FOOD = 'food',
-  TRANSPORT = 'transport',
-  BILLS = 'bills',
-  LEISURE = 'leisure',
-  HEALTH = 'health',
-  EDUCATION = 'education',
-  SHOPPING = 'shopping',
-  OTHER = 'other',
-}
-
 @Schema({ _id: false })
 export class RecurringPattern {
   @Prop({ required: true, enum: ['daily', 'weekly', 'monthly', 'yearly'] })
@@ -54,14 +30,29 @@ export class Transaction {
   @Prop({ required: true, type: Types.ObjectId, ref: 'User' })
   userId: Types.ObjectId;
 
-  @Prop({ required: true, enum: TransactionType })
-  type: TransactionType;
+  @Prop({ unique: true, sparse: true })
+  externalId?: string;
+
+  @Prop()
+  itemId?: string;
+
+  @Prop()
+  status?: string;
+
+  @Prop({ required: true })
+  type: string;
+
+  @Prop()
+  categoryId?: string;
 
   @Prop({ required: true })
   category: string;
 
   @Prop({ required: true })
   amount: number;
+
+  @Prop()
+  currencyCode?: string;
 
   @Prop({ required: true })
   date: Date;
@@ -75,11 +66,14 @@ export class Transaction {
   @Prop({ type: RecurringPatternSchema })
   recurringPattern?: RecurringPattern;
 
-  @Prop({ default: 'manual', enum: ['manual', 'import', 'recurring'] })
+  @Prop({ default: 'manual' })
   source: string;
 
   @Prop({ type: Types.ObjectId, ref: 'Transaction' })
   parentTransactionId?: Types.ObjectId;
+
+  @Prop()
+  accountId?: string;
 
   @Prop()
   createdAt: Date;
