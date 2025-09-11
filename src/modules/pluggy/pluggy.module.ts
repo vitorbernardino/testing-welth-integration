@@ -23,4 +23,4 @@ import { TransactionsService } from '../transactions/transactions.service';
     PluggyClient,
   ],
 })
-export class AppModule {}
+export class PluggyModule {}
