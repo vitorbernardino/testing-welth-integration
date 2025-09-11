@@ -2,7 +2,6 @@ import { Injectable } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 import { WebhookPayloadItem } from '../types/webhook.body';
 import { PluggyClient } from '../clients/pluggy.client';
-
 import { ConnectionRepository } from '../repositories/connection.repository';
 
 @Injectable()

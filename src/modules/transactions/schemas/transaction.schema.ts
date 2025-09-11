@@ -3,6 +3,30 @@ import { Document, Types } from 'mongoose';
 
 export type TransactionDocument = Transaction & Document;
 
+export enum TransactionType {
+  INCOME = 'income',
+  EXPENSE = 'expense',
+}
+
+export enum IncomeCategory {
+  SALARY = 'salary',
+  FREELANCE = 'freelance',
+  SALES = 'sales',
+  INVESTMENTS = 'investments',
+  OTHER = 'other',
+}
+
+export enum ExpenseCategory {
+  FOOD = 'food',
+  TRANSPORT = 'transport',
+  BILLS = 'bills',
+  LEISURE = 'leisure',
+  HEALTH = 'health',
+  EDUCATION = 'education',
+  SHOPPING = 'shopping',
+  OTHER = 'other',
+}
+
 @Schema({ _id: false })
 export class RecurringPattern {
   @Prop({ required: true, enum: ['daily', 'weekly', 'monthly', 'yearly'] })
