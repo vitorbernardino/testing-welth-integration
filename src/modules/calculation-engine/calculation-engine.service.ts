@@ -117,6 +117,8 @@ export class CalculationEngineService {
 
     const transactionsByDay = this.groupTransactionsByDay(allTransactions);
 
+    console.log("transactionsByDay: ", transactionsByDay.get("2025-09-11"));
+
     const existingDailySpending = await this.getExistingDailySpendingMap(userId, year, month);
 
     const dailyData: DailyData[] = [];
@@ -145,6 +147,8 @@ export class CalculationEngineService {
 
       dailyData.push(dayData);
     }
+
+    console.log("dailyData: ", dailyData[10]);
 
     // Calcula projeções mensais
     const monthlyProjections = this.calculateMonthlyProjections(dailyData, cumulativeBalance);
@@ -200,14 +204,14 @@ export class CalculationEngineService {
 
   private calculateDayIncome(dayTransactions: Transaction[]): number {
     return dayTransactions
-      .filter(transaction => transaction.type === 'income')
-      .reduce((sum, transaction) => sum + transaction.amount, 0);
+      .filter(transaction => transaction.type === 'income' || transaction.type === 'CREDIT')
+      .reduce((sum, transaction) => sum + Math.abs(transaction.amount), 0); // Sempre valor absoluto
   }
-
+  
   private calculateDayExpenses(dayTransactions: Transaction[]): number {
     return dayTransactions
-      .filter(transaction => transaction.type === 'expense')
-      .reduce((sum, transaction) => sum + transaction.amount, 0);
+      .filter(transaction => transaction.type === 'expense' || transaction.type === 'DEBIT')
+      .reduce((sum, transaction) => sum + Math.abs(transaction.amount), 0); // Sempre valor absoluto
   }
 
   private calculateMonthlyProjections(dailyData: DailyData[], finalBalance: number) {
@@ -347,7 +351,7 @@ export class CalculationEngineService {
       {
         $match: {
           userId: new Types.ObjectId(userId),
-          type: 'expense',
+          type: { $in: ['expense', 'DEBIT'] },
           date: {
             $gte: startDate.toDate(),
             $lte: endDate.toDate(),
@@ -357,7 +361,7 @@ export class CalculationEngineService {
       {
         $group: {
           _id: null,
-          totalExpenses: { $sum: '$amount' },
+          totalExpenses: { $sum: { $abs: '$amount' } },
         },
       },
     ]);
@@ -375,7 +379,7 @@ export class CalculationEngineService {
       {
         $match: {
           userId: new Types.ObjectId(userId),
-          type: 'expense',
+          type: { $in: ['expense', 'DEBIT'] },
           date: {
             $gte: startDate.toDate(),
             $lte: endDate.toDate(),
@@ -385,7 +389,7 @@ export class CalculationEngineService {
       {
         $group: {
           _id: '$category',
-          total: { $sum: '$amount' },
+          total: { $sum: { $abs: '$amount' } },
         },
       },
       {
