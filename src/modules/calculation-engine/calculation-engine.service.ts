@@ -117,8 +117,6 @@ export class CalculationEngineService {
 
     const transactionsByDay = this.groupTransactionsByDay(allTransactions);
 
-    console.log("transactionsByDay: ", transactionsByDay.get("2025-09-11"));
-
     const existingDailySpending = await this.getExistingDailySpendingMap(userId, year, month);
 
     const dailyData: DailyData[] = [];
@@ -147,8 +145,6 @@ export class CalculationEngineService {
 
       dailyData.push(dayData);
     }
-
-    console.log("dailyData: ", dailyData[10]);
 
     // Calcula projeções mensais
     const monthlyProjections = this.calculateMonthlyProjections(dailyData, cumulativeBalance);

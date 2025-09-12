@@ -85,7 +85,7 @@ export class TransactionsService {
     userId: string,
     transactions: PluggyTransaction[], // PluggyTransaction[] type from pluggy-sdk
   ) {
-    console.log(`💾 Salvando ${transactions.length} transações para itemId: ${itemId}`);
+    console.log(`💾 Salvando ${transactions.length} transações`);
     
     const savedTransactions: Transaction[] = [];
   
@@ -114,7 +114,7 @@ export class TransactionsService {
         });
   
         if (existingTransaction) {
-          console.log(`⚠️ Transação ${transaction.id} já existe, atualizando...`);
+          console.log(`⚠️ Transação ${transaction.description} já existe, atualizando...`);
           
           // Atualiza a transação existente
           const updatedTransaction = await this.update(
@@ -142,8 +142,6 @@ export class TransactionsService {
       }
     }
   
-    console.log(`✅ ${savedTransactions.length} transações processadas com sucesso`);
-  
     return {
       saved: savedTransactions,
       total: transactions.length,
@@ -151,7 +149,6 @@ export class TransactionsService {
   }
 
   async create(userId: string, createTransactionDto: CreateTransactionDto): Promise<Transaction> {
-    console.log(`💰 Criando transação: ${createTransactionDto.type} - R$ ${createTransactionDto.amount} em ${createTransactionDto.date}`);
     
     const normalizedDate = moment.utc(createTransactionDto.date).startOf('day').toDate();
 
@@ -236,7 +233,6 @@ export class TransactionsService {
     userId: string,
     updateTransactionDto: UpdateTransactionDto,
   ): Promise<Transaction> {
-    console.log(`📝 Atualizando transação ${id}`);
     
     // Busca a transação antes da atualização para capturar data anterior
     const existingTransaction = await this.findById(id, userId);
@@ -282,7 +278,6 @@ export class TransactionsService {
     });
 
     if (result.deletedCount > 0) {
-      console.log(`✅ Transação ${id} deletada`);
       
       this.eventEmitter.emit('transaction.deleted', {
         userId,
@@ -370,7 +365,6 @@ export class TransactionsService {
     });
 
     if (existingTransaction) {
-      console.log(`⏭️ Transação recorrente já existe para ${moment(date).format('YYYY-MM-DD')}`);
       return false;
     }
 
@@ -457,5 +451,112 @@ export class TransactionsService {
       },
       description: { $regex: description.substring(0, 20), $options: 'i' },
     });
+  }
+
+  async syncConnectionTransactions(userId: string, itemId: string) {
+    console.log(`🔄 Iniciando sincronização manual para itemId: ${itemId}`);
+    
+    const connection = await this.connectionRepository.findOne({ itemId });
+    if (!connection) {
+      throw new NotFoundException(`Conexão não encontrada para itemId: ${itemId}`);
+    }
+
+    if (connection.userId.toString() !== userId) {
+      throw new NotFoundException('Conexão não pertence ao usuário');
+    }
+
+    try {
+      const { results: accounts } = await this.pluggyClient
+        .instance()
+        .fetchAccounts(itemId);
+
+      let totalTransactions = 0;
+      const results: { accountId: string; accountName: string; transactionsFound: number; transactionsSaved: number }[] = [];
+
+      for (const account of accounts) {
+        console.log(`📊 Buscando transações da conta: ${account.name} (${account.id})`);
+        
+        const { results: transactions } = await this.pluggyClient
+          .instance()
+          .fetchTransactions(account.id, {
+            createdAtFrom: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString(),
+          });
+
+        console.log(`📈 Encontradas ${transactions.length} transações: ${transactions.map(t => t.description)}`);
+        
+        const savedResult = await this.saveTransactions(
+          itemId,
+          userId,
+          transactions,
+        );
+
+        results.push({
+          accountId: account.id,
+          accountName: account.name,
+          transactionsFound: transactions.length,
+          transactionsSaved: savedResult.saved.length,
+        });
+
+        totalTransactions += transactions.length;
+      }
+
+      console.log(`✅ Sincronização concluída: ${totalTransactions} transações processadas`);
+
+      return {
+        success: true,
+        itemId,
+        totalTransactions,
+        accounts: results,
+        message: `Sincronização concluída com sucesso. ${totalTransactions} transações processadas.`,
+      };
+
+    } catch (error) {
+      console.error(`❌ Erro na sincronização para itemId ${itemId}:`, error);
+      throw new Error(`Erro na sincronização: ${error.message}`);
+    }
+  }
+
+  async syncAllUserConnections(userId: string) {
+    console.log(`🔄 Iniciando sincronização de todas as conexões do usuário: ${userId}`);
+    
+    const connections = await this.connectionRepository.findAll({ userId });
+    
+    if (connections.length === 0) {
+      return {
+        success: true,
+        message: 'Nenhuma conexão encontrada para sincronizar',
+        results: [],
+      };
+    }
+
+    const results: { success: boolean; itemId: string; error: string }[] = [];
+    let totalTransactions = 0;
+
+    for (const connection of connections) {
+      try {
+        const result = await this.syncConnectionTransactions(userId, connection.itemId);
+        results.push({
+          success: true,
+          itemId: connection.itemId,
+          error: '',
+        });
+        totalTransactions += result.totalTransactions;
+      } catch (error) {
+        console.error(`❌ Erro na sincronização da conexão ${connection.itemId}:`, error);
+        results.push({
+          success: false,
+          itemId: connection.itemId,
+          error: error.message,
+        });
+      }
+    }
+
+    return {
+      success: true,
+      totalConnections: connections.length,
+      totalTransactions,
+      results,
+      message: `Sincronização concluída. ${totalTransactions} transações processadas de ${connections.length} conexões.`,
+    };
   }
 }
