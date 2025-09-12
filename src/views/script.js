@@ -1,6 +1,6 @@
 // Configuração da API
 const API_BASE = 'http://localhost:3001/api/v1';
-const AUTH_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImFuZHJlQGVtYWlsLmNvbSIsInN1YiI6IjY4YjhkNjk0YmRiNzM0NmFlYzVmMjJhOSIsImlhdCI6MTc1NzY0MTEyOCwiZXhwIjoxNzU3NjQyMDI4fQ.-As1hl_k_dsUpbH8fvtMOu2ACmm85pzlXmPQESovAQU';
+const AUTH_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImFuZHJlQGVtYWlsLmNvbSIsInN1YiI6IjY4YjhkNjk0YmRiNzM0NmFlYzVmMjJhOSIsImlhdCI6MTc1NzY5OTYxNiwiZXhwIjoxNzU3NzAwNTE2fQ.0Hgr_1NEKT6JeXKe4STg2_c4Rad3uCS-SW_Kk-FyLZs';
 
 // Estado global
 let currentMonth = new Date().getMonth() + 1;

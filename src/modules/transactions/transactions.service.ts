@@ -80,6 +80,48 @@ export class TransactionsService {
     });
   }
 
+  @OnEvent('account.ready')
+  async onAccountReady(payload: { itemId: string; accountId: string; userId: string; accountName: string }) {
+    console.log(`🔄 Processando conta pronta: ${payload.accountName} (${payload.accountId})`);
+    
+    try {
+      // Buscar transações da conta
+      const { results: transactions } = await this.pluggyClient
+        .instance()
+        .fetchTransactions(payload.accountId, {
+          createdAtFrom: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString(),
+        });
+
+      console.log(`📈 Encontradas ${transactions.length} transações na conta ${payload.accountName}`);
+
+      // Salvar as transações
+      const savedResult = await this.saveTransactions(
+        payload.itemId,
+        payload.userId,
+        transactions,
+      );
+
+      console.log(`✅ Salvas ${savedResult.saved.length} transações da conta ${payload.accountName}`);
+
+    } catch (error) {
+      console.error(`❌ Erro ao processar conta ${payload.accountName}:`, error);
+    }
+  }
+
+  @OnEvent('connection.ready')
+  async onConnectionReady(payload: { itemId: string; userId: string }) {
+  console.log(`🔄 Processando conexão pronta para itemId: ${payload.itemId}`);
+  
+  try {
+    // Usar o método syncConnectionTransactions existente
+    const result = await this.syncConnectionTransactions(payload.userId, payload.itemId);
+    
+    console.log(`✅ Sincronização concluída: ${result.totalTransactions} transações processadas`);
+  } catch (error) {
+    console.error(`❌ Erro ao sincronizar conexão ${payload.itemId}:`, error);
+  }
+}
+
   private async saveTransactions(
     itemId: string,
     userId: string,
