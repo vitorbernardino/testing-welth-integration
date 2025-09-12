@@ -12,6 +12,7 @@ import { PluggyClient } from '../pluggy/clients/pluggy.client';
 import { ConnectionRepository } from '../pluggy/repositories/connection.repository';
 import { WebhookPayloadTransaction } from '../pluggy/types/webhook.body';
 import { Transaction as PluggyTransaction } from 'pluggy-sdk';
+import { getCurrentMonthDateRange } from 'src/common/utils/date.utils';
 
 const DEFAULT_RECENT_TRANSACTIONS_LIMIT = 5;
 const DEFAULT_MONTHLY_AVERAGE_MONTHS = 6;
@@ -85,35 +86,49 @@ export class TransactionsService {
     console.log(`🔄 Processando conta pronta: ${payload.accountName} (${payload.accountId})`);
     
     try {
-      // Buscar transações da conta
+      // Usar o utilitário para obter as datas do mês atual
+      const { currentMonthStart, currentMonthEnd } = getCurrentMonthDateRange();
+      
+      // Buscar transações da conta apenas do mês atual
       const { results: transactions } = await this.pluggyClient
         .instance()
         .fetchTransactions(payload.accountId, {
-          createdAtFrom: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString(),
+          createdAtFrom: currentMonthStart.toISOString(),
+          to: currentMonthEnd.toISOString(),
         });
 
-      console.log(`📈 Encontradas ${transactions.length} transações na conta ${payload.accountName}`);
+      // Filtrar transações para garantir que são apenas do mês atual
+      const currentMonthTransactions = this.filterTransactionsByCurrentMonth(
+        transactions, 
+        currentMonthStart, 
+        currentMonthEnd
+      );
 
-      // Salvar as transações
+      if (currentMonthTransactions.length === 0) {
+        console.log(`ℹ️ Nenhuma transação do mês atual encontrada na conta ${payload.accountName}`);
+        return;
+      }
+
+      // Salvar as transações do mês atual
       const savedResult = await this.saveTransactions(
         payload.itemId,
         payload.userId,
-        transactions,
+        currentMonthTransactions,
       );
 
-      console.log(`✅ Salvas ${savedResult.saved.length} transações da conta ${payload.accountName}`);
+      console.log(`✅ Salvas ${savedResult.saved.length} transações do mês atual da conta ${payload.accountName}`);
 
     } catch (error) {
       console.error(`❌ Erro ao processar conta ${payload.accountName}:`, error);
     }
   }
 
+
   @OnEvent('connection.ready')
   async onConnectionReady(payload: { itemId: string; userId: string }) {
   console.log(`🔄 Processando conexão pronta para itemId: ${payload.itemId}`);
   
   try {
-    // Usar o método syncConnectionTransactions existente
     const result = await this.syncConnectionTransactions(payload.userId, payload.itemId);
     
     console.log(`✅ Sincronização concluída: ${result.totalTransactions} transações processadas`);
@@ -496,7 +511,7 @@ export class TransactionsService {
   }
 
   async syncConnectionTransactions(userId: string, itemId: string) {
-    console.log(`🔄 Iniciando sincronização manual para itemId: ${itemId}`);
+    console.log(`🔄 Iniciando sincronização manual do mês atual para itemId: ${itemId}`);
     
     const connection = await this.connectionRepository.findOne({ itemId });
     if (!connection) {
@@ -508,50 +523,56 @@ export class TransactionsService {
     }
 
     try {
-      const { results: accounts } = await this.pluggyClient
-        .instance()
-        .fetchAccounts(itemId);
-
-      let totalTransactions = 0;
-      const results: { accountId: string; accountName: string; transactionsFound: number; transactionsSaved: number }[] = [];
-
-      for (const account of accounts) {
-        console.log(`📊 Buscando transações da conta: ${account.name} (${account.id})`);
-        
-        const { results: transactions } = await this.pluggyClient
+        // Usar o utilitário para calcular range de datas do mês atual
+        const { currentMonthStart, currentMonthEnd } = getCurrentMonthDateRange();
+  
+        const { results: accounts } = await this.pluggyClient
           .instance()
-          .fetchTransactions(account.id, {
-            createdAtFrom: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString(),
+          .fetchAccounts(itemId);
+  
+        let totalTransactions = 0;
+        const results: { accountId: string; accountName: string; transactionsFound: number; transactionsSaved: number }[] = [];
+  
+        for (const account of accounts) {
+          const { results: transactions } = await this.pluggyClient
+            .instance()
+            .fetchTransactions(account.id, {
+              createdAtFrom: currentMonthStart.toISOString(),
+              to: currentMonthEnd.toISOString(),
+            });
+  
+          // Filtrar transações do mês atual
+          const currentMonthTransactions = this.filterTransactionsByCurrentMonth(
+            transactions, 
+            currentMonthStart, 
+            currentMonthEnd
+          );
+
+          const savedResult = await this.saveTransactions(
+            itemId,
+            userId,
+            currentMonthTransactions,
+          );
+  
+          results.push({
+            accountId: account.id,
+            accountName: account.name,
+            transactionsFound: currentMonthTransactions.length,
+            transactionsSaved: savedResult.saved.length,
           });
-
-        console.log(`📈 Encontradas ${transactions.length} transações: ${transactions.map(t => t.description)}`);
-        
-        const savedResult = await this.saveTransactions(
+  
+          totalTransactions += currentMonthTransactions.length;
+        }
+  
+        console.log(`✅ Sincronização do mês atual concluída: ${totalTransactions} transações processadas`);
+  
+        return {
+          success: true,
           itemId,
-          userId,
-          transactions,
-        );
-
-        results.push({
-          accountId: account.id,
-          accountName: account.name,
-          transactionsFound: transactions.length,
-          transactionsSaved: savedResult.saved.length,
-        });
-
-        totalTransactions += transactions.length;
-      }
-
-      console.log(`✅ Sincronização concluída: ${totalTransactions} transações processadas`);
-
-      return {
-        success: true,
-        itemId,
-        totalTransactions,
-        accounts: results,
-        message: `Sincronização concluída com sucesso. ${totalTransactions} transações processadas.`,
-      };
-
+          totalTransactions,
+          accounts: results,
+          message: `Sincronização do mês atual concluída com sucesso. ${totalTransactions} transações processadas.`,
+        };
     } catch (error) {
       console.error(`❌ Erro na sincronização para itemId ${itemId}:`, error);
       throw new Error(`Erro na sincronização: ${error.message}`);
@@ -600,5 +621,16 @@ export class TransactionsService {
       results,
       message: `Sincronização concluída. ${totalTransactions} transações processadas de ${connections.length} conexões.`,
     };
+  }
+
+  private filterTransactionsByCurrentMonth(
+    transactions: PluggyTransaction[], 
+    monthStart: Date, 
+    monthEnd: Date
+  ): PluggyTransaction[] {
+    return transactions.filter(transaction => {
+      const transactionDate = new Date(transaction.date);
+      return transactionDate >= monthStart && transactionDate <= monthEnd;
+    });
   }
 }
