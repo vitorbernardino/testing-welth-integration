@@ -13,6 +13,7 @@ import { ConnectionRepository } from '../pluggy/repositories/connection.reposito
 import { WebhookPayloadTransaction } from '../pluggy/types/webhook.body';
 import { Transaction as PluggyTransaction } from 'pluggy-sdk';
 import { getCurrentMonthDateRange } from 'src/common/utils/date.utils';
+import { isCreditCardAccount, isMainDebitAccount } from 'src/common/constants/account-types.constants';
 
 const DEFAULT_RECENT_TRANSACTIONS_LIMIT = 5;
 const DEFAULT_MONTHLY_AVERAGE_MONTHS = 6;
@@ -529,11 +530,29 @@ export class TransactionsService {
         const { results: accounts } = await this.pluggyClient
           .instance()
           .fetchAccounts(itemId);
+
+        console.log(`📊 Encontradas ${accounts.length} contas para sincronização`);
+
+        // Aplicar o mesmo filtro para evitar duplicação de dados de cartões de crédito
+        const filteredAccounts = accounts.filter(account => {
+          const isCreditCard = isCreditCardAccount(account);
+          if (isCreditCard) {
+            console.log(`🚫 Conta de cartão de crédito filtrada na sincronização: ${account.name}`);
+            return false;
+          }
+          return true;
+        });
+
+        // Priorizar conta corrente principal se existir
+        const mainDebitAccount = filteredAccounts.find(account => isMainDebitAccount(account));
+        const accountsToProcess = mainDebitAccount ? [mainDebitAccount] : filteredAccounts;
+
+        console.log(`✅ Sincronizando ${accountsToProcess.length} contas válidas`);
   
         let totalTransactions = 0;
         const results: { accountId: string; accountName: string; transactionsFound: number; transactionsSaved: number }[] = [];
   
-        for (const account of accounts) {
+        for (const account of accountsToProcess) {
           const { results: transactions } = await this.pluggyClient
             .instance()
             .fetchTransactions(account.id, {
@@ -565,18 +584,18 @@ export class TransactionsService {
         }
   
         console.log(`✅ Sincronização do mês atual concluída: ${totalTransactions} transações processadas`);
-  
+        
         return {
-          success: true,
-          itemId,
+          message: 'Sincronização concluída com sucesso',
           totalTransactions,
-          accounts: results,
-          message: `Sincronização do mês atual concluída com sucesso. ${totalTransactions} transações processadas.`,
+          accountsProcessed: results.length,
+          details: results
         };
-    } catch (error) {
-      console.error(`❌ Erro na sincronização para itemId ${itemId}:`, error);
-      throw new Error(`Erro na sincronização: ${error.message}`);
-    }
+
+      } catch (error) {
+        console.error(`❌ Erro na sincronização manual:`, error);
+        throw error;
+      }
   }
 
   async syncAllUserConnections(userId: string) {

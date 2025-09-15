@@ -3,6 +3,7 @@ import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
 import { WebhookPayloadItem } from '../types/webhook.body';
 import { PluggyClient } from '../clients/pluggy.client';
 import { ConnectionRepository } from '../repositories/connection.repository';
+import { isCreditCardAccount, isMainDebitAccount } from '../../../common/constants/account-types.constants';
 
 @Injectable()
 export class ConnectionService {
@@ -59,10 +60,32 @@ export class ConnectionService {
           .instance()
           .fetchAccounts(payload.itemId);
 
-        console.log(` Encontradas ${accounts.length} contas para itemId: ${payload.itemId}`);
+        console.log(`📊 Encontradas ${accounts.length} contas para itemId: ${payload.itemId}`);
 
-        // Emitir evento para sincronizar transações de cada conta
-        for (const account of accounts) {
+        // Filtrar contas para excluir cartões de crédito e evitar duplicação de dados
+        const filteredAccounts = accounts.filter(account => {
+          const isCreditCard = isCreditCardAccount(account);
+          if (isCreditCard) {
+            console.log(`🚫 Conta de cartão de crédito filtrada: ${account.name} (${account.id})`);
+            return false;
+          }
+          return true;
+        });
+
+        console.log(`✅ ${filteredAccounts.length} contas válidas após filtro (excluídos cartões de crédito)`);
+
+        // Priorizar conta corrente principal se existir
+        const mainDebitAccount = filteredAccounts.find(account => isMainDebitAccount(account));
+        const accountsToProcess = mainDebitAccount ? [mainDebitAccount] : filteredAccounts;
+
+        if (mainDebitAccount) {
+          console.log(`🎯 Processando apenas conta corrente principal: ${mainDebitAccount.name}`);
+        } else {
+          console.log(`📋 Processando todas as contas válidas (${accountsToProcess.length} contas)`);
+        }
+
+        // Emitir evento para sincronizar transações apenas das contas filtradas
+        for (const account of accountsToProcess) {
           this.eventEmitter.emit('account.ready', {
             itemId: payload.itemId,
             accountId: account.id,
