@@ -12,7 +12,7 @@ import { PluggyClient } from '../pluggy/clients/pluggy.client';
 import { ConnectionRepository } from '../pluggy/repositories/connection.repository';
 import { WebhookPayloadTransaction } from '../pluggy/types/webhook.body';
 import { Transaction as PluggyTransaction } from 'pluggy-sdk';
-import { getCurrentMonthDateRange } from 'src/common/utils/date.utils';
+import { getCurrentMonthDateRange, normalizeDateToBrazilianTimezone } from 'src/common/utils/date.utils';
 import { isCreditCardAccount, isMainDebitAccount } from 'src/common/constants/account-types.constants';
 
 const DEFAULT_RECENT_TRANSACTIONS_LIMIT = 5;
@@ -208,7 +208,8 @@ export class TransactionsService {
 
   async create(userId: string, createTransactionDto: CreateTransactionDto): Promise<Transaction> {
     
-    const normalizedDate = moment.utc(createTransactionDto.date).startOf('day').toDate();
+    const originalDate = createTransactionDto.date;
+    const normalizedDate = normalizeDateToBrazilianTimezone(originalDate);
 
     const transaction = new this.transactionModel({
       ...createTransactionDto,
@@ -300,7 +301,7 @@ export class TransactionsService {
 
     let normalizedDate = existingTransaction.date;
     if (updateTransactionDto.date) {
-      normalizedDate = moment.utc(updateTransactionDto.date).startOf('day').toDate();
+      normalizedDate = normalizeDateToBrazilianTimezone(updateTransactionDto.date);
     }
 
     const transaction = await this.transactionModel.findOneAndUpdate(
@@ -439,7 +440,7 @@ export class TransactionsService {
   }
 
   private async createRecurringTransaction(parentTransaction: Transaction, date: Date): Promise<void> {
-    const normalizedDate = moment.utc(date).startOf('day').toDate();
+    const normalizedDate = normalizeDateToBrazilianTimezone(date);
     
     const newTransaction = new this.transactionModel({
       userId: parentTransaction.userId,
@@ -496,9 +497,9 @@ export class TransactionsService {
     amount: number,
     description: string
   ): Promise<Transaction | null> {
-    const transactionDate = moment(date);
-    const startDate = transactionDate.clone().startOf('day').toDate();
-    const endDate = transactionDate.clone().endOf('day').toDate();
+    const normalizedSearchDate = normalizeDateToBrazilianTimezone(date);
+    const startDate = moment(normalizedSearchDate).startOf('day').toDate();
+    const endDate = moment(normalizedSearchDate).endOf('day').toDate();
 
     return this.transactionModel.findOne({
       userId: new Types.ObjectId(userId),
