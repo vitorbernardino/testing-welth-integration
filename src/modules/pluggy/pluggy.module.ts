@@ -25,7 +25,6 @@ import { Transaction, TransactionSchema } from '../transactions/schemas/transact
     ConnectionRepository,
     TokenService,
     ConnectionService,
-    TransactionsService,
     PluggyClient,
   ],
   exports: [
