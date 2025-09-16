@@ -66,133 +66,133 @@ export class FileImportService {
   //   }
   // }
 
-  private async processCSV(buffer: Buffer): Promise<CreateTransactionDto[]> {
-    return new Promise((resolve, reject) => {
-      const transactions: CreateTransactionDto[] = [];
-      const stream = Readable.from(buffer.toString());
+  // private async processCSV(buffer: Buffer): Promise<CreateTransactionDto[]> {
+  //   return new Promise((resolve, reject) => {
+  //     const transactions: CreateTransactionDto[] = [];
+  //     const stream = Readable.from(buffer.toString());
 
-      stream
-        .pipe(csv())
-        .on('data', (row) => {
-          try {
-            const transaction = this.parseCSVRow(row);
-            if (transaction) {
-              transactions.push(transaction);
-            }
-          } catch (error) {
-            console.error('Error parsing CSV row:', error);
-          }
-        })
-        .on('end', () => {
-          resolve(transactions);
-        })
-        .on('error', reject);
-    });
-  }
+  //     stream
+  //       .pipe(csv())
+  //       .on('data', (row) => {
+  //         try {
+  //           const transaction = this.parseCSVRow(row);
+  //           if (transaction) {
+  //             transactions.push(transaction);
+  //           }
+  //         } catch (error) {
+  //           console.error('Error parsing CSV row:', error);
+  //         }
+  //       })
+  //       .on('end', () => {
+  //         resolve(transactions);
+  //       })
+  //       .on('error', reject);
+  //   });
+  // }
 
-  private parseCSVRow(row: any): CreateTransactionDto | null {
-    // Common CSV formats for bank statements
-    // Adapt this based on your bank's CSV format
-    const possibleDateFields = ['Data', 'Date', 'data', 'date'];
-    const possibleDescriptionFields = ['Descrição', 'Description', 'Histórico', 'descricao'];
-    const possibleAmountFields = ['Valor', 'Amount', 'valor', 'amount'];
-    const possibleTypeFields = ['Tipo', 'Type', 'tipo', 'type'];
+  // private parseCSVRow(row: any): CreateTransactionDto | null {
+  //   // Common CSV formats for bank statements
+  //   // Adapt this based on your bank's CSV format
+  //   const possibleDateFields = ['Data', 'Date', 'data', 'date'];
+  //   const possibleDescriptionFields = ['Descrição', 'Description', 'Histórico', 'descricao'];
+  //   const possibleAmountFields = ['Valor', 'Amount', 'valor', 'amount'];
+  //   const possibleTypeFields = ['Tipo', 'Type', 'tipo', 'type'];
 
-    const date = this.findFieldValue(row, possibleDateFields);
-    const description = this.findFieldValue(row, possibleDescriptionFields);
-    const amount = this.findFieldValue(row, possibleAmountFields);
-    const type = this.findFieldValue(row, possibleTypeFields);
+  //   const date = this.findFieldValue(row, possibleDateFields);
+  //   const description = this.findFieldValue(row, possibleDescriptionFields);
+  //   const amount = this.findFieldValue(row, possibleAmountFields);
+  //   const type = this.findFieldValue(row, possibleTypeFields);
 
-    if (!date || !amount) {
-      return null;
-    }
+  //   if (!date || !amount) {
+  //     return null;
+  //   }
 
-    const parsedAmount = Math.abs(parseFloat(amount.replace(/[^0-9.-]/g, '')));
-    if (isNaN(parsedAmount)) {
-      return null;
-    }
+  //   const parsedAmount = Math.abs(parseFloat(amount.replace(/[^0-9.-]/g, '')));
+  //   if (isNaN(parsedAmount)) {
+  //     return null;
+  //   }
 
-    // Determine transaction type based on amount sign or type field
-    let transactionType: TransactionType;
-    if (type && type.toLowerCase().includes('credit')) {
-      transactionType = TransactionType.INCOME;
-    } else if (type && type.toLowerCase().includes('debit')) {
-      transactionType = TransactionType.EXPENSE;
-    } else {
-      // If amount is negative, it's an expense
-      transactionType = parseFloat(amount) < 0 ? TransactionType.EXPENSE : TransactionType.INCOME;
-    }
+  //   // Determine transaction type based on amount sign or type field
+  //   let transactionType: TransactionType;
+  //   if (type && type.toLowerCase().includes('credit')) {
+  //     transactionType = TransactionType.INCOME;
+  //   } else if (type && type.toLowerCase().includes('debit')) {
+  //     transactionType = TransactionType.EXPENSE;
+  //   } else {
+  //     // If amount is negative, it's an expense
+  //     transactionType = parseFloat(amount) < 0 ? TransactionType.EXPENSE : TransactionType.INCOME;
+  //   }
 
-    // Auto-categorize based on description
-    const category = this.autoCategorizeBankTransaction(description || '', transactionType);
+  //   // Auto-categorize based on description
+  //   const category = this.autoCategorizeBankTransaction(description || '', transactionType);
 
-    return {
-      type: transactionType,
-      category,
-      amount: parsedAmount,
-      date: this.parseDate(date),
-      description: description || 'Imported transaction',
-    };
-  }
+  //   return {
+  //     type: transactionType,
+  //     category,
+  //     amount: parsedAmount,
+  //     date: date,
+  //     description: description || 'Imported transaction',
+  //   };
+  // }
 
-  private async processPDF(buffer: Buffer): Promise<CreateTransactionDto[]> {
-    const pdfData = await pdfParse(buffer);
-    const text = pdfData.text;
+  // private async processPDF(buffer: Buffer): Promise<CreateTransactionDto[]> {
+  //   const pdfData = await pdfParse(buffer);
+  //   const text = pdfData.text;
 
-    // Extract transactions from PDF text
-    // This is a simplified approach - you might need more sophisticated parsing
-    const lines = text.split('\n');
-    const transactions: CreateTransactionDto[] = [];
+  //   // Extract transactions from PDF text
+  //   // This is a simplified approach - you might need more sophisticated parsing
+  //   const lines = text.split('\n');
+  //   const transactions: CreateTransactionDto[] = [];
 
-    for (const line of lines) {
-      const transaction = this.parsePDFLine(line);
-      if (transaction) {
-        transactions.push(transaction);
-      }
-    }
+  //   for (const line of lines) {
+  //     const transaction = this.parsePDFLine(line);
+  //     if (transaction) {
+  //       transactions.push(transaction);
+  //     }
+  //   }
 
-    return transactions;
-  }
+  //   return transactions;
+  // }
 
-  private parsePDFLine(line: string): CreateTransactionDto | null {
-    // Regex patterns for common bank statement formats
-    // Adapt these based on your bank's PDF format
-    const patterns = [
-      // Pattern: DD/MM/YYYY Description -Amount or +Amount
-      /(\d{2}\/\d{2}\/\d{4})\s+(.+?)\s+([-+]?\d+[.,]\d{2})/,
-      // Pattern: DD/MM Description Amount D/C
-      /(\d{2}\/\d{2})\s+(.+?)\s+(\d+[.,]\d{2})\s+(D|C)/,
-    ];
+  // private parsePDFLine(line: string): CreateTransactionDto | null {
+  //   // Regex patterns for common bank statement formats
+  //   // Adapt these based on your bank's PDF format
+  //   const patterns = [
+  //     // Pattern: DD/MM/YYYY Description -Amount or +Amount
+  //     /(\d{2}\/\d{2}\/\d{4})\s+(.+?)\s+([-+]?\d+[.,]\d{2})/,
+  //     // Pattern: DD/MM Description Amount D/C
+  //     /(\d{2}\/\d{2})\s+(.+?)\s+(\d+[.,]\d{2})\s+(D|C)/,
+  //   ];
 
-    for (const pattern of patterns) {
-      const match = line.match(pattern);
-      if (match) {
-        const [, date, description, amount, typeIndicator] = match;
+  //   for (const pattern of patterns) {
+  //     const match = line.match(pattern);
+  //     if (match) {
+  //       const [, date, description, amount, typeIndicator] = match;
         
-        const parsedAmount = Math.abs(parseFloat(amount.replace(/[.,]/g, '.')));
-        if (isNaN(parsedAmount)) continue;
+  //       const parsedAmount = Math.abs(parseFloat(amount.replace(/[.,]/g, '.')));
+  //       if (isNaN(parsedAmount)) continue;
 
-        let transactionType: TransactionType;
-        if (typeIndicator === 'C' || amount.startsWith('+')) {
-          transactionType = TransactionType.INCOME;
-        } else {
-          transactionType = TransactionType.EXPENSE;
-        }
+  //       let transactionType: TransactionType;
+  //       if (typeIndicator === 'C' || amount.startsWith('+')) {
+  //         transactionType = TransactionType.INCOME;
+  //       } else {
+  //         transactionType = TransactionType.EXPENSE;
+  //       }
 
-        const category = this.autoCategorizeBankTransaction(description, transactionType);
+  //       const category = this.autoCategorizeBankTransaction(description, transactionType);
 
-        return {
-          type: transactionType,
-          category,
-          amount: parsedAmount,
-          date: this.parseDate(date),
-          description: description.trim(),
-        };
-      }
-    }
+  //       return {
+  //         type: transactionType,
+  //         category,
+  //         amount: parsedAmount,
+  //         date: this.parseDate(date),
+  //         description: description.trim(),
+  //       };
+  //     }
+  //   }
 
-    return null;
-  }
+  //   return null;
+  // }
 
   private findFieldValue(row: any, possibleFields: string[]): string | null {
     for (const field of possibleFields) {

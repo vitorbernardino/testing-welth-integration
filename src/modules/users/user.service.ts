@@ -6,11 +6,16 @@ import { User, UserDocument } from './schemas/user.schema';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { Transaction, TransactionDocument } from '../transactions/schemas/transaction.schema';
+import { ConnectionRepository } from '../pluggy/repositories/connection.repository';
 
 @Injectable()
 export class UsersService {
   constructor(
     @InjectModel(User.name) private userModel: Model<UserDocument>,
+    @InjectModel(Transaction.name)
+    private transactionModel: Model<TransactionDocument>,
+    private connectionRepository: ConnectionRepository,
     private eventEmitter: EventEmitter2,
   ) {}
 
@@ -101,6 +106,17 @@ export class UsersService {
     await this.userModel.findByIdAndUpdate(userId, {
       $unset: { refreshTokenHash: '', refreshTokenExpiresAt: '' },
     });
+  }
+
+  async getConnections(userId: string) {
+    return this.connectionRepository.findAll({ userId });
+  }
+
+  async getTransactions(userId: string) {
+    return this.transactionModel
+      .find({ userId })
+      .sort({ date: -1 })
+      .exec();
   }
 
   private sanitizeUser(user: UserDocument): User {

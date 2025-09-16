@@ -1,12 +1,28 @@
 // Configuração da API
 const API_BASE = 'http://localhost:3001/api/v1';
-const AUTH_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImFuZHJlQGVtYWlsLmNvbSIsInN1YiI6IjY4YjhkNjk0YmRiNzM0NmFlYzVmMjJhOSIsImlhdCI6MTc1Njk0NDAzMiwiZXhwIjoxNzU2OTQ0OTMyfQ.13ubd4H2SxSKVCDFnqm2CoUzjQFYeaUHbcPBOI-g76Y';
+const AUTH_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImFuZHJlQGVtYWlsLmNvbSIsInN1YiI6IjY4YjhkNjk0YmRiNzM0NmFlYzVmMjJhOSIsImlhdCI6MTc1Nzk2ODAxMCwiZXhwIjoxNzU4NTcyODEwfQ.JWmUDHdvTwvTxh81Rpj4LgCawtSk_yh29FMu8cl-b40';
 
 // Estado global
 let currentMonth = new Date().getMonth() + 1;
 let currentYear = new Date().getFullYear();
 let currentPage = 1;
 let editingCell = null;
+
+// Estado da integração Pluggy
+const pluggyState = {
+    currentUserId: null,
+    pluggyConnectInstance: null,
+    isPolling: false,
+    connections: []
+};
+
+// Configurações do Pluggy
+const PLUGGY_CONFIG = {
+    POLLING: {
+        RETRY_DELAY_MS: 3000,
+        MAX_RETRIES: 20,
+    }
+};
 
 // Categorias
 const categories = {
@@ -139,6 +155,190 @@ async function apiCall(endpoint, options = {}) {
     }
 }
 
+// ============================================================================
+// INTEGRAÇÃO COM PLUGGY
+// ============================================================================
+const pluggyIntegration = {
+    async initializeWidget() {
+        try {
+            console.log('🚀 Inicializando widget Pluggy');
+            showToast('info', 'Pluggy', 'Gerando token de conexão...');
+            
+            // Obter o ID do usuário atual do token JWT
+            const userProfile = await apiCall('/users/profile');
+            if (!userProfile.success || !userProfile.data) {
+                throw new Error('Não foi possível obter dados do usuário');
+            }
+            
+            pluggyState.currentUserId = userProfile.data._id;
+            
+            // Gerar token de conexão
+            const tokenData = await apiCall(`/users/${pluggyState.currentUserId}/token`, { 
+                method: 'POST' 
+            });
+            
+            if (!tokenData.accessToken) {
+                throw new Error('Token de acesso não recebido.');
+            }
+            
+            // Inicializar widget Pluggy
+            pluggyState.pluggyConnectInstance = new PluggyConnect({
+                connectToken: tokenData.accessToken,
+                includeSandbox: true,
+                onSuccess: this.handleSuccess.bind(this),
+                onError: this.handleError.bind(this),
+                onClose: this.handleClose.bind(this),
+                onEvent: this.handleEvent.bind(this),
+            });
+            
+            pluggyState.pluggyConnectInstance.init();
+            showToast('success', 'Pluggy', 'Widget do Pluggy aberto!');
+            
+        } catch (error) {
+            console.error('💥 Erro ao inicializar widget', error);
+            showToast('error', 'Erro Pluggy', `Erro ao inicializar widget: ${error.message}`);
+        }
+    },
+
+    handleSuccess(itemData) {
+        console.log('🎉 Conexão Pluggy bem-sucedida', itemData);
+        showToast('success', 'Pluggy', `Conexão com ${itemData.connector.name} realizada! Sincronizando dados...`);
+        
+        // Iniciar polling para aguardar sincronização
+        this.startPollingForData(itemData.itemId);
+    },
+    
+    handleError(error) {
+        console.error('❌ Erro no Pluggy', error);
+        showToast('error', 'Erro Pluggy', `Erro na conexão: ${error.message || 'Erro desconhecido'}`);
+    },
+
+    handleClose() {
+        console.log('🔒 Widget fechado pelo usuário');
+        showToast('info', 'Pluggy', 'Widget fechado pelo usuário');
+    },
+    
+    handleEvent(eventName, eventData) {
+        console.log(`📡 Evento Pluggy: ${eventName}`, eventData);
+        if (eventName === 'ITEM_LOGIN_SUCCEEDED') {
+            showToast('info', 'Pluggy', 'Login bem-sucedido. Aguardando sincronização...');
+        }
+    },
+
+    async startPollingForData(itemId) {
+        if (pluggyState.isPolling) {
+            console.log('Polling já em andamento.');
+            return;
+        }
+        
+        pluggyState.isPolling = true;
+        this.updatePluggyStatus('Sincronizando dados da nova conexão... Por favor, aguarde.', 'info');
+        
+        let retries = 0;
+        const poll = async () => {
+            if (retries >= PLUGGY_CONFIG.POLLING.MAX_RETRIES) {
+                console.log('Polling excedeu o número máximo de tentativas.');
+                showToast('error', 'Pluggy', 'A sincronização está demorando mais que o esperado. Tente atualizar em alguns minutos.');
+                this.updatePluggyStatus('', 'hide');
+                pluggyState.isPolling = false;
+                return;
+            }
+
+            try {
+                console.log(`Polling attempt #${retries + 1}`);
+                
+                // Verificar se a conexão já existe
+                const connections = await apiCall(`/users/${pluggyState.currentUserId}/connections`);
+                const newConnection = connections.find(conn => conn.itemId === itemId);
+
+                if (newConnection) {
+                    console.log('Polling bem-sucedido! Conexão encontrada.');
+                    showToast('success', 'Pluggy', 'Sincronização concluída! Dados atualizados.');
+                    
+                    this.updatePluggyStatus('Sincronização concluída!', 'success');
+                    setTimeout(() => this.updatePluggyStatus('', 'hide'), 5000);
+
+                    // Recarregar todos os dados
+                    await this.loadConnections();
+                    await loadData();
+                    
+                    pluggyState.isPolling = false;
+                } else {
+                    retries++;
+                    setTimeout(poll, PLUGGY_CONFIG.POLLING.RETRY_DELAY_MS);
+                }
+            } catch (error) {
+                console.error('Erro durante o polling:', error);
+                showToast('error', 'Pluggy', 'Erro ao verificar sincronização.');
+                this.updatePluggyStatus('', 'hide');
+                pluggyState.isPolling = false;
+            }
+        };
+
+        poll();
+    },
+
+    updatePluggyStatus(message, type) {
+        const statusElement = document.getElementById('pluggy-status');
+        const statusText = document.getElementById('pluggy-status-text');
+        
+        if (type === 'hide') {
+            statusElement.style.display = 'none';
+            return;
+        }
+        
+        statusElement.style.display = 'block';
+        statusText.textContent = message;
+        
+        // Remover classes antigas
+        statusElement.classList.remove('pluggy-status-info', 'pluggy-status-success', 'pluggy-status-error');
+        
+        // Adicionar nova classe
+        if (type) {
+            statusElement.classList.add(`pluggy-status-${type}`);
+        }
+    },
+
+    async loadConnections() {
+        try {
+            if (!pluggyState.currentUserId) {
+                // Obter o ID do usuário atual
+                const userProfile = await apiCall('/users/profile');
+                if (userProfile.success && userProfile.data) {
+                    pluggyState.currentUserId = userProfile.data._id;
+                }
+            }
+            
+            if (!pluggyState.currentUserId) return;
+            
+            const connections = await apiCall(`/users/${pluggyState.currentUserId}/connections`);
+            pluggyState.connections = connections || [];
+            this.renderConnections();
+            
+        } catch (error) {
+            console.error('Erro ao carregar conexões:', error);
+        }
+    },
+
+    renderConnections() {
+        const container = document.getElementById('connections-list');
+        if (!container) return;
+        
+        if (pluggyState.connections.length === 0) {
+            container.innerHTML = '<p style="text-align: center; opacity: 0.7;">Nenhuma conexão bancária encontrada.</p>';
+            return;
+        }
+        
+        container.innerHTML = pluggyState.connections.map(connection => `
+            <div class="connection-card">
+                <h4><i class="fas fa-university"></i> ${connection.name}</h4>
+                <p><strong>Item ID:</strong> ${connection.itemId}</p>
+                <span class="connection-status status-${connection.status.toLowerCase()}">${connection.status}</span>
+            </div>
+        `).join('');
+    }
+};
+
 // Event handlers
 function setupEventHandlers() {
     // Formulário de transação
@@ -232,7 +432,8 @@ async function loadData() {
     try {
         await Promise.all([
             loadTransactions(),
-            loadSpreadsheet()
+            loadSpreadsheet(),
+            pluggyIntegration.loadConnections() // Carregar conexões Pluggy
         ]);
     } catch (error) {
         console.error('Erro ao carregar dados:', error);
@@ -247,10 +448,15 @@ async function loadTransactions() {
         });
         
         const filterType = document.getElementById('filter-type');
+        const filterSource = document.getElementById('filter-source');
         const filterSearch = document.getElementById('filter-search');
         
         if (filterType && filterType.value) {
             params.append('type', filterType.value);
+        }
+        
+        if (filterSource && filterSource.value) {
+            params.append('source', filterSource.value);
         }
         
         if (filterSearch && filterSearch.value.trim()) {
@@ -299,7 +505,7 @@ function renderTransactions(transactions) {
     if (!transactions || transactions.length === 0) {
         tbody.innerHTML = `
             <tr>
-                <td colspan="6" class="empty-state">
+                <td colspan="7" class="empty-state">
                     <i class="fas fa-inbox"></i><br>
                     Nenhuma transação encontrada
                 </td>
@@ -322,10 +528,17 @@ function renderTransactions(transactions) {
                 ${formatCurrency(transaction.amount)}
             </td>
             <td>
+                <span class="transaction-source ${transaction.source || 'manual'}">
+                    ${getSourceLabel(transaction.source)}
+                </span>
+            </td>
+            <td>
                 <div class="actions">
-                    <button class="btn btn-danger btn-small" onclick="deleteTransaction('${transaction._id}')">
-                        <i class="fas fa-trash"></i>
-                    </button>
+                    ${transaction.source !== 'import' ? `
+                        <button class="btn btn-danger btn-small" onclick="deleteTransaction('${transaction._id}')">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    ` : '<span style="color: #666; font-size: 12px;">Importada</span>'}
                 </div>
             </td>
         </tr>
@@ -334,6 +547,16 @@ function renderTransactions(transactions) {
 
 function getCategoryLabel(type, category) {
     return categories[type]?.[category] || category || '-';
+}
+
+function getSourceLabel(source) {
+    const sourceLabels = {
+        manual: 'Manual',
+        import: 'Pluggy',
+        recurring: 'Recorrente',
+        banking: 'Bancária'
+    };
+    return sourceLabels[source] || 'Manual';
 }
 
 function renderPagination(pagination) {
@@ -484,7 +707,6 @@ function updateSummary(data) {
 }
 
 // Ações
-// Ações
 async function handleSubmitTransaction(e) {
     e.preventDefault();
     
@@ -510,13 +732,13 @@ async function handleSubmitTransaction(e) {
         category: categorySelect.value,
         amount: parseFloat(amountInput.value),
         date: dateInput.value,
-        description: descriptionInput ? descriptionInput.value.trim() : ''
+        description: descriptionInput ? descriptionInput.value.trim() : '',
+        source: 'manual' // Marcar como transação manual
     };
 
     // Recorrência mensal no mesmo dia da data selecionada
     if (isRecurringInput && isRecurringInput.checked) {
         const dateObj = new Date(dateInput.value);
-        // Usa UTC para evitar problemas de fuso
         const dayOfMonth = dateObj.getUTCDate();
         formData.isRecurring = true;
         formData.recurringPattern = {

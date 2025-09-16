@@ -128,4 +128,34 @@ export class TransactionsController {
       timestamp: new Date().toISOString(),
     };
   }
+
+  @Post('sync/:itemId')
+  async syncConnection(
+    @CurrentUser() user: User,
+    @Param('itemId') itemId: string,
+  ): Promise<ApiResponse<any>> {
+    const result = await this.transactionsService.syncConnectionTransactions(
+      user._id.toString(),
+      itemId,
+    );
+    return {
+      success: true,
+      data: result,
+      timestamp: new Date().toISOString(),
+    };
+  }
+
+  @Post('sync-all')
+  async syncAllConnections(
+    @CurrentUser() user: User,
+  ): Promise<ApiResponse<any>> {
+    const result = await this.transactionsService.syncAllUserConnections(
+      user._id.toString(),
+    );
+    return {
+      success: true,
+      data: result,
+      timestamp: new Date().toISOString(),
+    };
+  }
 }

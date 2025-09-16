@@ -54,14 +54,29 @@ export class Transaction {
   @Prop({ required: true, type: Types.ObjectId, ref: 'User' })
   userId: Types.ObjectId;
 
-  @Prop({ required: true, enum: TransactionType })
-  type: TransactionType;
+  @Prop({ unique: true, sparse: true })
+  externalId?: string;
+
+  @Prop()
+  itemId?: string;
+
+  @Prop()
+  status?: string;
 
   @Prop({ required: true })
+  type: string;
+
+  @Prop()
+  categoryId?: string;
+
+  @Prop({ required: false, default: 'other' })
   category: string;
 
   @Prop({ required: true })
   amount: number;
+
+  @Prop()
+  currencyCode?: string;
 
   @Prop({ required: true })
   date: Date;
@@ -75,11 +90,14 @@ export class Transaction {
   @Prop({ type: RecurringPatternSchema })
   recurringPattern?: RecurringPattern;
 
-  @Prop({ default: 'manual', enum: ['manual', 'import', 'recurring'] })
+  @Prop({ default: 'manual' })
   source: string;
 
   @Prop({ type: Types.ObjectId, ref: 'Transaction' })
   parentTransactionId?: Types.ObjectId;
+
+  @Prop()
+  accountId?: string;
 
   @Prop()
   createdAt: Date;
