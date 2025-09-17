@@ -4,11 +4,9 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { ScheduleModule } from '@nestjs/schedule';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { TransactionsModule } from './modules/transactions/transactions.module';
-import { FileImportModule } from './modules/file-import/file-import.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { CalculationEngineModule } from './modules/calculation-engine/calculation-engine.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
-import { EmergencyReserveModule } from './modules/emergency-reserve/emergency-reserve.module';
 import { SpreadsheetModule } from './modules/spreadsheet/spreadsheet.module';
 import { UsersModule } from './modules/users/user.module';
 import { TasksModule } from './modules/tasks/monthly-tasks.module';
@@ -28,8 +26,6 @@ import { InvestmentsModule } from './modules/investment/investment.module';
     UsersModule,
     TransactionsModule,
     SpreadsheetModule,
-    EmergencyReserveModule,
-    FileImportModule,
     CalculationEngineModule,
     DashboardModule,
     TasksModule,
