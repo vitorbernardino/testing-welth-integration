@@ -94,6 +94,12 @@ export class ConnectionService {
           });
         }
 
+        this.eventEmitter.emit('investments.sync', {
+          itemId: payload.itemId,
+          userId: item.clientUserId,
+        });
+        
+        console.log(`💰 Evento de sincronização de investimentos emitido para itemId: ${payload.itemId}`);
       } catch (error) {
         console.error(`❌ Erro ao processar item/created para itemId: ${payload.itemId}:`, error);
       }

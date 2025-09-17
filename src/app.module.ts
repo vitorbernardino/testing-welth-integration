@@ -9,11 +9,11 @@ import { AuthModule } from './modules/auth/auth.module';
 import { CalculationEngineModule } from './modules/calculation-engine/calculation-engine.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { EmergencyReserveModule } from './modules/emergency-reserve/emergency-reserve.module';
-import { InvestmentModule } from './modules/investment/investment.module';
 import { SpreadsheetModule } from './modules/spreadsheet/spreadsheet.module';
 import { UsersModule } from './modules/users/user.module';
 import { TasksModule } from './modules/tasks/monthly-tasks.module';
 import { PluggyModule } from './modules/pluggy/pluggy.module';
+import { InvestmentsModule } from './modules/investment/investment.module';
 
 @Module({
   imports: [
@@ -30,11 +30,11 @@ import { PluggyModule } from './modules/pluggy/pluggy.module';
     SpreadsheetModule,
     EmergencyReserveModule,
     FileImportModule,
-    InvestmentModule,
     CalculationEngineModule,
     DashboardModule,
     TasksModule,
-    PluggyModule
+    PluggyModule,
+    InvestmentsModule
   ],
 })
 export class AppModule {}
