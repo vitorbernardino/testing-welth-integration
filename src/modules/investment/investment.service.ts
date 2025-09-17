@@ -35,11 +35,7 @@ export class InvestmentsService {
   @OnEvent('investments.sync')
   async onInvestmentsSync(payload: InvestmentSyncEvent): Promise<void> {
     try {
-      console.log(`💰 Iniciando sincronização de investimentos para itemId: ${payload.itemId}`);
-      
       await this.syncInvestmentsFromPluggy(payload.itemId, payload.userId);
-      
-      console.log(`✅ Sincronização de investimentos concluída para itemId: ${payload.itemId}`);
     } catch (error) {
       console.error(`❌ Erro na sincronização de investimentos para itemId: ${payload.itemId}:`, error);
     }
@@ -79,7 +75,6 @@ export class InvestmentsService {
       console.error(`❌ Erro ao buscar investimentos da Pluggy para itemId: ${itemId}:`, error);
       
       if (error.message?.includes('fetchInvestments is not a function')) {
-        console.log(`⚠️ Método fetchInvestments não disponível. Retornando array vazio.`);
         return [];
       }
       

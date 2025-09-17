@@ -316,7 +316,7 @@ export class DashboardService {
       id: transaction._id.toString(),
       description: transaction.description || 'Sem descrição',
       category: this.formatCategoryName(transaction.category),
-      amount: Math.abs(transaction.amount), // Sempre positivo para exibição
+      amount: Math.abs(transaction.amount),
       type: this.normalizeTransactionType(transaction.type),
       date: moment(transaction.date).format('DD/MM/YYYY'),
       formattedAmount: this.formatCurrency(transaction.amount, transaction.type)

@@ -199,13 +199,13 @@ export class CalculationEngineService {
   private calculateDayIncome(dayTransactions: Transaction[]): number {
     return dayTransactions
       .filter(transaction => transaction.type === 'income' || transaction.type === 'CREDIT')
-      .reduce((sum, transaction) => sum + Math.abs(transaction.amount), 0); // Sempre valor absoluto
+      .reduce((sum, transaction) => sum + Math.abs(transaction.amount), 0);
   }
   
   private calculateDayExpenses(dayTransactions: Transaction[]): number {
     return dayTransactions
       .filter(transaction => transaction.type === 'expense' || transaction.type === 'DEBIT')
-      .reduce((sum, transaction) => sum + Math.abs(transaction.amount), 0); // Sempre valor absoluto
+      .reduce((sum, transaction) => sum + Math.abs(transaction.amount), 0);
   }
 
   private calculateMonthlyProjections(dailyData: DailyData[], finalBalance: number) {
