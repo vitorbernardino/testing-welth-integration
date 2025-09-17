@@ -11,10 +11,6 @@ import { DashboardResponseDto } from './dto/dashboard-response.dto';
 export class DashboardController {
   constructor(private readonly dashboardService: DashboardService) {}
 
-  /**
-   * Endpoint principal do dashboard
-   * Retorna todos os dados necessários para a tela de dashboard
-   */
   @Get()
   async getDashboardData(
     @CurrentUser() user: User
@@ -31,10 +27,6 @@ export class DashboardController {
     };
   }
 
-  /**
-   * Endpoint específico para métricas resumidas
-   * Útil para widgets ou atualizações rápidas
-   */
   @Get('summary')
   async getDashboardSummary(
     @CurrentUser() user: User

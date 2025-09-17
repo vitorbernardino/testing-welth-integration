@@ -9,9 +9,6 @@ import { SpreadsheetModule } from '../spreadsheet/spreadsheet.module';
     UsersModule,
     SpreadsheetModule,
   ],
-//   controllers: [
-//     TasksController,
-//   ],
   providers: [
     MonthlyTasksService,
   ],

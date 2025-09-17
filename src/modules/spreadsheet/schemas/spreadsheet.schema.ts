@@ -72,5 +72,4 @@ export class SpreadsheetData {
 
 export const SpreadsheetDataSchema = SchemaFactory.createForClass(SpreadsheetData);
 
-// Create compound index for efficient queries
 SpreadsheetDataSchema.index({ userId: 1, year: 1, month: 1 }, { unique: true });

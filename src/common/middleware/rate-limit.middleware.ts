@@ -9,14 +9,13 @@ interface RateLimitData {
 @Injectable()
 export class RateLimitMiddleware implements NestMiddleware {
   private requests = new Map<string, RateLimitData>();
-  private readonly limit = 100; // 100 requests
-  private readonly windowMs = 15 * 60 * 1000; // 15 minutes
+  private readonly limit = 100;
+  private readonly windowMs = 15 * 60 * 1000;
 
   use(req: Request, res: Response, next: NextFunction) {
     const key = this.getKey(req);
     const now = Date.now();
     
-    // Clean expired entries
     this.cleanup(now);
 
     const requestData = this.requests.get(key);
@@ -30,7 +29,6 @@ export class RateLimitMiddleware implements NestMiddleware {
     }
 
     if (now > requestData.resetTime) {
-      // Reset window
       this.requests.set(key, {
         count: 1,
         resetTime: now + this.windowMs,
@@ -53,7 +51,6 @@ export class RateLimitMiddleware implements NestMiddleware {
   }
 
   private getKey(req: Request): string {
-    // Use IP address as key, could be enhanced with user ID for authenticated requests
     return req.ip || req.connection.remoteAddress || 'unknown';
   }
 

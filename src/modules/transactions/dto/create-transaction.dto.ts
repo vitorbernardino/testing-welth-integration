@@ -24,7 +24,6 @@ export class RecurringPatternDto {
 }
 
 export class CreateTransactionDto {
-  // Campos obrigatórios do schema
   @IsString()
   type: string;
 
@@ -38,12 +37,10 @@ export class CreateTransactionDto {
   @IsDateString()
   date: Date;
 
-  // Campos opcionais básicos
   @IsOptional()
   @IsString()
   description?: string;
 
-  // Campos para transações recorrentes
   @IsOptional()
   @IsBoolean()
   isRecurring?: boolean;
@@ -53,7 +50,6 @@ export class CreateTransactionDto {
   @Type(() => RecurringPatternDto)
   recurringPattern?: RecurringPatternDto;
 
-  // Campos para integração com APIs externas (Pluggy)
   @IsOptional()
   @IsString()
   externalId?: string;
@@ -74,12 +70,10 @@ export class CreateTransactionDto {
   @IsString()
   categoryId?:  PluggyTransaction['categoryId'];
 
-  // Source da transação
   @IsOptional()
   @IsEnum(['manual', 'import', 'recurring', 'banking'])
   source?: string;
 
-  // Referências
   @IsOptional()
   @IsMongoId()
   parentTransactionId?: string;

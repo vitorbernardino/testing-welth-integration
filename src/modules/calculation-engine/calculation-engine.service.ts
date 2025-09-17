@@ -146,10 +146,8 @@ export class CalculationEngineService {
       dailyData.push(dayData);
     }
 
-    // Calcula projeções mensais
     const monthlyProjections = this.calculateMonthlyProjections(dailyData, cumulativeBalance);
 
-    // Atualiza ou cria a planilha
     await this.updateSpreadsheetData(userId, year, month, dailyData, monthlyProjections);
   }
 

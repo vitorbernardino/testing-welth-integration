@@ -151,7 +151,6 @@ export class SpreadsheetService {
 
     const createdSpreadsheet = await this.create(userId, createData);
     
-    // Emite evento para recalcular com base em transações existentes
     this.eventEmitter.emit('spreadsheet.month.created', {
       userId,
       year,

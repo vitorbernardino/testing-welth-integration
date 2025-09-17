@@ -3,9 +3,6 @@ import { Document, Types } from 'mongoose';
 
 export type InvestmentDocument = Investment & Document;
 
-/**
- * Enum para tipos de investimentos seguindo padrão Pluggy
- */
 export enum InvestmentType {
   FIXED_INCOME = 'fixed_income',
   VARIABLE_INCOME = 'variable_income',
@@ -17,9 +14,6 @@ export enum InvestmentType {
   OTHER = 'other'
 }
 
-/**
- * Enum para subtipos de investimentos
- */
 export enum InvestmentSubtype {
   CDB = 'cdb',
   CDI_POST_FIXED = 'cdi_post_fixed',
@@ -88,7 +82,6 @@ export class Investment {
 
 export const InvestmentSchema = SchemaFactory.createForClass(Investment);
 
-// Índices para performance
 InvestmentSchema.index({ userId: 1, itemId: 1 });
 InvestmentSchema.index({ externalId: 1 });
 InvestmentSchema.index({ type: 1, subtype: 1 });

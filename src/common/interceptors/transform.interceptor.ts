@@ -24,12 +24,10 @@ import {
     ): Observable<Response<T>> {
       return next.handle().pipe(
         map((data) => {
-          // If the data already has the response format, return as is
           if (data && typeof data === 'object' && 'success' in data) {
             return data;
           }
   
-          // Otherwise, wrap in response format
           return {
             success: true,
             data,

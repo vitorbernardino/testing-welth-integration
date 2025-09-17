@@ -46,9 +46,7 @@ export class ConnectionService {
               status: item.status,
               userId: item.clientUserId,
             });
-            console.log(`✅ Conexão criada para itemId: ${payload.itemId}`);
           } else {
-            console.log(`ℹ️ Conexão já existe para itemId: ${payload.itemId} emitindo atualizacao das transacoes.`);
             this.eventEmitter.emit('connection.ready', {
               itemId: payload.itemId,
               userId: item.clientUserId,
@@ -60,31 +58,17 @@ export class ConnectionService {
           .instance()
           .fetchAccounts(payload.itemId);
 
-        console.log(`📊 Encontradas ${accounts.length} contas para itemId: ${payload.itemId}`);
-
-        // Filtrar contas para excluir cartões de crédito e evitar duplicação de dados
         const filteredAccounts = accounts.filter(account => {
           const isCreditCard = isCreditCardAccount(account);
           if (isCreditCard) {
-            console.log(`🚫 Conta de cartão de crédito filtrada: ${account.name} (${account.id})`);
             return false;
           }
           return true;
         });
 
-        console.log(`✅ ${filteredAccounts.length} contas válidas após filtro (excluídos cartões de crédito)`);
-
-        // Priorizar conta corrente principal se existir
         const mainDebitAccount = filteredAccounts.find(account => isMainDebitAccount(account));
         const accountsToProcess = mainDebitAccount ? [mainDebitAccount] : filteredAccounts;
 
-        if (mainDebitAccount) {
-          console.log(`🎯 Processando apenas conta corrente principal: ${mainDebitAccount.name}`);
-        } else {
-          console.log(`📋 Processando todas as contas válidas (${accountsToProcess.length} contas)`);
-        }
-
-        // Emitir evento para sincronizar transações apenas das contas filtradas
         for (const account of accountsToProcess) {
           this.eventEmitter.emit('account.ready', {
             itemId: payload.itemId,
@@ -98,8 +82,6 @@ export class ConnectionService {
           itemId: payload.itemId,
           userId: item.clientUserId,
         });
-        
-        console.log(`💰 Evento de sincronização de investimentos emitido para itemId: ${payload.itemId}`);
       } catch (error) {
         console.error(`❌ Erro ao processar item/created para itemId: ${payload.itemId}:`, error);
       }
