@@ -199,4 +199,50 @@ export class InvestmentsService {
       investments,
     };
   }
+
+  async syncInvestmentsByItemId(itemId: string, userId: string): Promise<any> {
+    try {
+      const pluggyInvestments = await this.fetchInvestmentsFromPluggy(itemId);
+      
+      if (pluggyInvestments.length === 0) {
+        return {
+          message: 'Nenhum investimento encontrado para esta conexão',
+          totalInvestments: 0,
+          investmentsProcessed: 0,
+          investmentsSaved: 0,
+          investmentsUpdated: 0,
+        };
+      }
+  
+      let investmentsSaved = 0;
+      let investmentsUpdated = 0;
+  
+      for (const pluggyInvestment of pluggyInvestments) {
+        const existingInvestment = await this.investmentRepository.findOne({
+          externalId: pluggyInvestment.id,
+        });
+  
+        await this.upsertInvestment(pluggyInvestment, itemId, userId);
+  
+        if (existingInvestment) {
+          investmentsUpdated++;
+        } else {
+          investmentsSaved++;
+        }
+      }
+  
+      return {
+        message: 'Sincronização de investimentos concluída com sucesso',
+        totalInvestments: pluggyInvestments.length,
+        investmentsProcessed: pluggyInvestments.length,
+        data: pluggyInvestments,
+        investmentsSaved,
+        investmentsUpdated,
+      };
+  
+    } catch (error) {
+      console.error(`❌ Erro na sincronização manual de investimentos para itemId: ${itemId}:`, error);
+      throw new Error(`Falha na sincronização de investimentos: ${error.message}`);
+    }
+  }
 }

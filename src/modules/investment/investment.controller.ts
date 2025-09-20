@@ -1,4 +1,4 @@
-import { Controller, Get, Param, UseGuards } from '@nestjs/common';
+import { Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { ApiResponse } from '../../common/interfaces/api-response.interface';
 import { CurrentUser } from '../../common/decorators/auth.decorator';
@@ -39,6 +39,23 @@ export class InvestmentsController {
     return {
       success: true,
       data: total,
+      timestamp: new Date().toISOString(),
+    };
+  }
+
+  @Post('sync/:itemId')
+  async syncInvestmentsByConnection(
+    @CurrentUser() user: User,
+    @Param('itemId') itemId: string,
+  ): Promise<ApiResponse<any>> {
+    const result = await this.investmentsService.syncInvestmentsByItemId(
+      itemId,
+      user._id.toString(),
+    );
+    
+    return {
+      success: true,
+      data: result,
       timestamp: new Date().toISOString(),
     };
   }
