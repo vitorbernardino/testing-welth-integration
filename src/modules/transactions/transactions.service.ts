@@ -32,22 +32,34 @@ export class TransactionsService {
     const connection = await this.connectionRepository.findOne({
       itemId: payload.itemId,
     });
-
+  
     if (!connection) {
       console.error(`❌ Conexão não encontrada para itemId: ${payload.itemId}`);
       return;
     }
-
+  
+    const { currentMonthStart, currentMonthEnd } = getCurrentMonthDateRange();
+  
     const { results: transactions } = await this.pluggyClient
       .instance()
       .fetchTransactions(payload.accountId, {
         createdAtFrom: payload.transactionsCreatedAtFrom,
       });
-
+  
+    const currentMonthTransactions = this.filterTransactionsByCurrentMonth(
+      transactions, 
+      currentMonthStart, 
+      currentMonthEnd
+    );
+  
+    if (currentMonthTransactions.length === 0) {
+      return;
+    }
+  
     await this.saveTransactions(
       payload.itemId,
       connection.userId.toString(),
-      transactions,
+      currentMonthTransactions,
     );
   }
 
@@ -56,22 +68,34 @@ export class TransactionsService {
     const connection = await this.connectionRepository.findOne({
       itemId: payload.itemId,
     });
-
+  
     if (!connection) {
       console.error(`❌ Conexão não encontrada para itemId: ${payload.itemId}`);
       return;
     }
-
+  
+    const { currentMonthStart, currentMonthEnd } = getCurrentMonthDateRange();
+  
     const { results: transactions } = await this.pluggyClient
       .instance()
       .fetchTransactions(payload.accountId, {
         ids: payload.transactionIds,
       });
-
+  
+    const currentMonthTransactions = this.filterTransactionsByCurrentMonth(
+      transactions, 
+      currentMonthStart, 
+      currentMonthEnd
+    );
+  
+    if (currentMonthTransactions.length === 0) {
+      return;
+    }
+  
     await this.saveTransactions(
       payload.itemId,
       connection.userId.toString(),
-      transactions,
+      currentMonthTransactions,
     );
   }
 
@@ -84,13 +108,9 @@ export class TransactionsService {
 
   @OnEvent('account.ready')
   async onAccountReady(payload: { itemId: string; accountId: string; userId: string; accountName: string }) {
-    console.log(`🔄 Processando conta pronta: ${payload.accountName} (${payload.accountId})`);
-    
     try {
-      // Usar o utilitário para obter as datas do mês atual
       const { currentMonthStart, currentMonthEnd } = getCurrentMonthDateRange();
       
-      // Buscar transações da conta apenas do mês atual
       const { results: transactions } = await this.pluggyClient
         .instance()
         .fetchTransactions(payload.accountId, {
@@ -98,7 +118,6 @@ export class TransactionsService {
           to: currentMonthEnd.toISOString(),
         });
 
-      // Filtrar transações para garantir que são apenas do mês atual
       const currentMonthTransactions = this.filterTransactionsByCurrentMonth(
         transactions, 
         currentMonthStart, 
@@ -106,19 +125,14 @@ export class TransactionsService {
       );
 
       if (currentMonthTransactions.length === 0) {
-        console.log(`ℹ️ Nenhuma transação do mês atual encontrada na conta ${payload.accountName}`);
         return;
       }
 
-      // Salvar as transações do mês atual
-      const savedResult = await this.saveTransactions(
+      await this.saveTransactions(
         payload.itemId,
         payload.userId,
         currentMonthTransactions,
       );
-
-      console.log(`✅ Salvas ${savedResult.saved.length} transações do mês atual da conta ${payload.accountName}`);
-
     } catch (error) {
       console.error(`❌ Erro ao processar conta ${payload.accountName}:`, error);
     }
@@ -127,12 +141,8 @@ export class TransactionsService {
 
   @OnEvent('connection.ready')
   async onConnectionReady(payload: { itemId: string; userId: string }) {
-  console.log(`🔄 Processando conexão pronta para itemId: ${payload.itemId}`);
-  
   try {
     const result = await this.syncConnectionTransactions(payload.userId, payload.itemId);
-    
-    console.log(`✅ Sincronização concluída: ${result.totalTransactions} transações processadas`);
   } catch (error) {
     console.error(`❌ Erro ao sincronizar conexão ${payload.itemId}:`, error);
   }
@@ -141,22 +151,18 @@ export class TransactionsService {
   private async saveTransactions(
     itemId: string,
     userId: string,
-    transactions: PluggyTransaction[], // PluggyTransaction[] type from pluggy-sdk
+    transactions: PluggyTransaction[],
   ) {
-    console.log(`💾 Salvando ${transactions.length} transações`);
-    
     const savedTransactions: Transaction[] = [];
   
     for (const transaction of transactions) {
       try {
-        // Mapeia os dados do Pluggy para o formato do CreateTransactionDto
         const createTransactionDto = {
           type: transaction.type,
           category: transaction.category || 'other',
           amount: transaction.amount,
           date: transaction.date,
           description: transaction.description,
-          // Campos específicos do Pluggy
           externalId: transaction.id,
           itemId,
           status: transaction.status,
@@ -166,15 +172,11 @@ export class TransactionsService {
           source: 'import',
         };
   
-        // Verifica se já existe uma transação com este externalId
         const existingTransaction = await this.transactionModel.findOne({
           externalId: transaction.id,
         });
   
         if (existingTransaction) {
-          console.log(`⚠️ Transação ${transaction.description} já existe, atualizando...`);
-          
-          // Atualiza a transação existente
           const updatedTransaction = await this.update(
             existingTransaction._id.toString(),
             userId,
@@ -190,7 +192,6 @@ export class TransactionsService {
           
           savedTransactions.push(updatedTransaction);
         } else {
-          // Cria nova transação usando o método create existente
           const savedTransaction = await this.create(userId, createTransactionDto);
           savedTransactions.push(savedTransaction);
         }
@@ -214,7 +215,7 @@ export class TransactionsService {
     const transaction = new this.transactionModel({
       ...createTransactionDto,
       userId: new Types.ObjectId(userId),
-      date: normalizedDate, // Usa data normalizada
+      date: normalizedDate,
     });
 
     const savedTransaction = await transaction.save();
@@ -293,7 +294,6 @@ export class TransactionsService {
     updateTransactionDto: UpdateTransactionDto,
   ): Promise<Transaction> {
     
-    // Busca a transação antes da atualização para capturar data anterior
     const existingTransaction = await this.findById(id, userId);
     const previousDate = existingTransaction.date;
     const previousAmount = existingTransaction.amount;
@@ -408,7 +408,6 @@ export class TransactionsService {
     const pattern = transaction.recurringPattern;
     if (!pattern) return false;
 
-    // Verifica se já existe uma transação para este dia
     const startOfDay = new Date(date);
     startOfDay.setHours(0, 0, 0, 0);
     
@@ -512,9 +511,7 @@ export class TransactionsService {
     });
   }
 
-  async syncConnectionTransactions(userId: string, itemId: string) {
-    console.log(`🔄 Iniciando sincronização manual do mês atual para itemId: ${itemId}`);
-    
+  async syncConnectionTransactions(userId: string, itemId: string) {    
     const connection = await this.connectionRepository.findOne({ itemId });
     if (!connection) {
       throw new NotFoundException(`Conexão não encontrada para itemId: ${itemId}`);
@@ -525,30 +522,22 @@ export class TransactionsService {
     }
 
     try {
-        // Usar o utilitário para calcular range de datas do mês atual
         const { currentMonthStart, currentMonthEnd } = getCurrentMonthDateRange();
   
         const { results: accounts } = await this.pluggyClient
           .instance()
           .fetchAccounts(itemId);
 
-        console.log(`📊 Encontradas ${accounts.length} contas para sincronização`);
-
-        // Aplicar o mesmo filtro para evitar duplicação de dados de cartões de crédito
         const filteredAccounts = accounts.filter(account => {
           const isCreditCard = isCreditCardAccount(account);
           if (isCreditCard) {
-            console.log(`🚫 Conta de cartão de crédito filtrada na sincronização: ${account.name}`);
             return false;
           }
           return true;
         });
 
-        // Priorizar conta corrente principal se existir
         const mainDebitAccount = filteredAccounts.find(account => isMainDebitAccount(account));
         const accountsToProcess = mainDebitAccount ? [mainDebitAccount] : filteredAccounts;
-
-        console.log(`✅ Sincronizando ${accountsToProcess.length} contas válidas`);
   
         let totalTransactions = 0;
         const results: { accountId: string; accountName: string; transactionsFound: number; transactionsSaved: number }[] = [];
@@ -561,7 +550,6 @@ export class TransactionsService {
               to: currentMonthEnd.toISOString(),
             });
   
-          // Filtrar transações do mês atual
           const currentMonthTransactions = this.filterTransactionsByCurrentMonth(
             transactions, 
             currentMonthStart, 
@@ -583,9 +571,7 @@ export class TransactionsService {
   
           totalTransactions += currentMonthTransactions.length;
         }
-  
-        console.log(`✅ Sincronização do mês atual concluída: ${totalTransactions} transações processadas`);
-        
+          
         return {
           message: 'Sincronização concluída com sucesso',
           totalTransactions,
@@ -599,9 +585,7 @@ export class TransactionsService {
       }
   }
 
-  async syncAllUserConnections(userId: string) {
-    console.log(`🔄 Iniciando sincronização de todas as conexões do usuário: ${userId}`);
-    
+  async syncAllUserConnections(userId: string) {    
     const connections = await this.connectionRepository.findAll({ userId });
     
     if (connections.length === 0) {

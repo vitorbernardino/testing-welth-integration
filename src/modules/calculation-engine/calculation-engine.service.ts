@@ -146,10 +146,8 @@ export class CalculationEngineService {
       dailyData.push(dayData);
     }
 
-    // Calcula projeções mensais
     const monthlyProjections = this.calculateMonthlyProjections(dailyData, cumulativeBalance);
 
-    // Atualiza ou cria a planilha
     await this.updateSpreadsheetData(userId, year, month, dailyData, monthlyProjections);
   }
 
@@ -200,14 +198,14 @@ export class CalculationEngineService {
 
   private calculateDayIncome(dayTransactions: Transaction[]): number {
     return dayTransactions
-      .filter(transaction => transaction.type === 'income' || transaction.type === 'CREDIT')
-      .reduce((sum, transaction) => sum + Math.abs(transaction.amount), 0); // Sempre valor absoluto
+      .filter(transaction => transaction.type === 'income' || transaction.type === 'CREDIT' && transaction.category !== 'Credit card payment')
+      .reduce((sum, transaction) => sum + Math.abs(transaction.amount), 0);
   }
   
   private calculateDayExpenses(dayTransactions: Transaction[]): number {
     return dayTransactions
-      .filter(transaction => transaction.type === 'expense' || transaction.type === 'DEBIT')
-      .reduce((sum, transaction) => sum + Math.abs(transaction.amount), 0); // Sempre valor absoluto
+      .filter(transaction => transaction.type === 'expense' || transaction.type === 'DEBIT' || transaction.category === 'Credit card payment')
+      .reduce((sum, transaction) => sum + Math.abs(transaction.amount), 0);
   }
 
   private calculateMonthlyProjections(dailyData: DailyData[], finalBalance: number) {

@@ -4,7 +4,6 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { DashboardService } from './dashboard.service';
 import { DashboardController } from './dashboard.controller';
 
-// Schemas necessários
 import { Transaction, TransactionSchema } from '../transactions/schemas/transaction.schema';
 import { Investment, InvestmentSchema } from '../investment/schemas/investment.schema';
 import { SpreadsheetData, SpreadsheetDataSchema } from '../spreadsheet/schemas/spreadsheet.schema';

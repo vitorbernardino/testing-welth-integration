@@ -1,4 +1,4 @@
-import { Controller, Get, Param, UseGuards } from '@nestjs/common';
+import { Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { ApiResponse } from '../../common/interfaces/api-response.interface';
 import { CurrentUser } from '../../common/decorators/auth.decorator';
@@ -10,9 +10,6 @@ import { InvestmentsService } from './investment.service';
 export class InvestmentsController {
   constructor(private readonly investmentsService: InvestmentsService) {}
 
-  /**
-   * Busca todos os investimentos do usuário logado
-   */
   @Get()
   async getUserInvestments(@CurrentUser() user: User): Promise<ApiResponse<any>> {
     const summary = await this.investmentsService.getInvestmentsSummaryByUserId(user._id);
@@ -24,9 +21,6 @@ export class InvestmentsController {
     };
   }
 
-  /**
-   * Busca investimentos por itemId (conexão específica)
-   */
   @Get('by-connection/:itemId')
   async getInvestmentsByConnection(@Param('itemId') itemId: string): Promise<ApiResponse<any[]>> {
     const investments = await this.investmentsService.getInvestmentsByItemId(itemId);
@@ -38,9 +32,6 @@ export class InvestmentsController {
     };
   }
 
-  /**
-   * Busca total investido pelo usuário
-   */
   @Get('total')
   async getTotalInvested(@CurrentUser() user: User): Promise<ApiResponse<number>> {
     const total = await this.investmentsService.getTotalInvestedByUserId(user._id);
@@ -48,6 +39,23 @@ export class InvestmentsController {
     return {
       success: true,
       data: total,
+      timestamp: new Date().toISOString(),
+    };
+  }
+
+  @Post('sync/:itemId')
+  async syncInvestmentsByConnection(
+    @CurrentUser() user: User,
+    @Param('itemId') itemId: string,
+  ): Promise<ApiResponse<any>> {
+    const result = await this.investmentsService.syncInvestmentsByItemId(
+      itemId,
+      user._id.toString(),
+    );
+    
+    return {
+      success: true,
+      data: result,
       timestamp: new Date().toISOString(),
     };
   }

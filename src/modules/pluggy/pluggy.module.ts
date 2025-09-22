@@ -1,17 +1,14 @@
-import { forwardRef, Module } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { ConfigModule} from '@nestjs/config';
 import { PluggyClient } from './clients/pluggy.client';
 import { ConnectionService } from './services/connection.service';
 import { WebhookController } from './controllers/webhook.controller';
 import { TokenService } from './services/token.service';
 import { ConnectionRepository } from './repositories/connection.repository';
-import { UsersService } from '../users/user.service';
-import { TransactionsService } from '../transactions/transactions.service';
 import { MongooseModule } from '@nestjs/mongoose';
 import { Connection, ConnectionSchema } from './schemas/connection.schema';
-import { UsersModule } from '../users/user.module';
-import { TransactionsModule } from '../transactions/transactions.module';
 import { Transaction, TransactionSchema } from '../transactions/schemas/transaction.schema';
+import { ConnectionController } from './controllers/connection.controller';
 
 
 @Module({
@@ -20,7 +17,7 @@ import { Transaction, TransactionSchema } from '../transactions/schemas/transact
     MongooseModule.forFeature([{ name: Connection.name, schema: ConnectionSchema }]),
     MongooseModule.forFeature([{ name: Transaction.name, schema: TransactionSchema }]),
   ],
-  controllers: [WebhookController],
+  controllers: [WebhookController, ConnectionController],
   providers: [
     ConnectionRepository,
     TokenService,

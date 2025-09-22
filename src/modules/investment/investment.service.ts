@@ -5,18 +5,11 @@ import { Investment, InvestmentType, InvestmentSubtype } from './schemas/investm
 import { Types } from 'mongoose';
 import { InvestmentRepository } from './investment.repository';
 
-/**
- * Interface para evento de sincronização de investimentos
- */
 interface InvestmentSyncEvent {
   itemId: string;
   userId: string;
 }
 
-/**
- * Interface para dados de investimento retornados pela Pluggy SDK
- * Baseada na estrutura real da API Pluggy
- */
 interface PluggyInvestmentData {
   id: string;
   name: string;
@@ -29,7 +22,6 @@ interface PluggyInvestmentData {
   issuer?: string | null;
   code?: string | null;
   lastUpdatedAt?: string;
-  // Outras propriedades que podem vir da Pluggy
   [key: string]: any;
 }
 
@@ -40,25 +32,15 @@ export class InvestmentsService {
     private pluggyClient: PluggyClient,
   ) {}
 
-  /**
-   * Listener para sincronizar investimentos quando conexão é estabelecida
-   */
   @OnEvent('investments.sync')
   async onInvestmentsSync(payload: InvestmentSyncEvent): Promise<void> {
     try {
-      console.log(`💰 Iniciando sincronização de investimentos para itemId: ${payload.itemId}`);
-      
       await this.syncInvestmentsFromPluggy(payload.itemId, payload.userId);
-      
-      console.log(`✅ Sincronização de investimentos concluída para itemId: ${payload.itemId}`);
     } catch (error) {
       console.error(`❌ Erro na sincronização de investimentos para itemId: ${payload.itemId}:`, error);
     }
   }
 
-  /**
-   * Sincroniza investimentos da Pluggy
-   */
   private async syncInvestmentsFromPluggy(itemId: string, userId: string): Promise<void> {
     const pluggyInvestments = await this.fetchInvestmentsFromPluggy(itemId);
     
@@ -67,23 +49,14 @@ export class InvestmentsService {
     }
   }
 
-  /**
-   * Busca investimentos da API Pluggy
-   * Corrigida a tipagem para corresponder ao retorno real da SDK
-   */
   private async fetchInvestmentsFromPluggy(itemId: string): Promise<PluggyInvestmentData[]> {
     try {
-      // A SDK da Pluggy retorna { results: Investment[] }
       const response = await this.pluggyClient
         .instance()
         .fetchInvestments(itemId);
 
-      // Verificar se a resposta tem a estrutura esperada
       const investments = response?.results || response || [];
       
-      console.log(`📊 Encontrados ${investments.length} investimentos na Pluggy para itemId: ${itemId}`);
-      
-      // Mapear os dados da Pluggy para nossa interface
       return investments.map((investment: any): PluggyInvestmentData => ({
         id: investment.id || investment._id,
         name: investment.name || 'Investimento sem nome',
@@ -101,9 +74,7 @@ export class InvestmentsService {
     } catch (error) {
       console.error(`❌ Erro ao buscar investimentos da Pluggy para itemId: ${itemId}:`, error);
       
-      // Se o método fetchInvestments não existir, tentar alternativas
       if (error.message?.includes('fetchInvestments is not a function')) {
-        console.log(`⚠️ Método fetchInvestments não disponível. Retornando array vazio.`);
         return [];
       }
       
@@ -111,9 +82,6 @@ export class InvestmentsService {
     }
   }
 
-  /**
-   * Cria ou atualiza investimento no banco
-   */
   private async upsertInvestment(
     pluggyInvestment: PluggyInvestmentData,
     itemId: string,
@@ -141,9 +109,6 @@ export class InvestmentsService {
     );
   }
 
-  /**
-   * Gera código a partir do nome quando não disponível
-   */
   private generateCodeFromName(name: string): string {
     return name
       .substring(0, 10)
@@ -152,9 +117,6 @@ export class InvestmentsService {
       .padEnd(3, 'X');
   }
 
-  /**
-   * Mapeia tipo de investimento da Pluggy para enum interno
-   */
   private mapInvestmentType(pluggyType: string): InvestmentType {
     if (!pluggyType) return InvestmentType.OTHER;
     
@@ -175,9 +137,6 @@ export class InvestmentsService {
     return typeMap[pluggyType.toLowerCase()] || InvestmentType.OTHER;
   }
 
-  /**
-   * Mapeia subtipo de investimento da Pluggy para enum interno
-   */
   private mapInvestmentSubtype(pluggySubtype: string | null): InvestmentSubtype {
     if (!pluggySubtype) return InvestmentSubtype.OTHER;
     
@@ -198,31 +157,19 @@ export class InvestmentsService {
     return subtypeMap[pluggySubtype.toLowerCase()] || InvestmentSubtype.OTHER;
   }
 
-  /**
-   * Busca investimentos por usuário
-   */
   async getInvestmentsByUserId(userId: string): Promise<Investment[]> {
     return this.investmentRepository.findByUserId(userId);
   }
 
-  /**
-   * Busca investimentos por itemId
-   */
   async getInvestmentsByItemId(itemId: string): Promise<Investment[]> {
     return this.investmentRepository.findByItemId(itemId);
   }
 
-  /**
-   * Calcula total investido por usuário
-   */
   async getTotalInvestedByUserId(userId: string): Promise<number> {
     const investments = await this.getInvestmentsByUserId(userId);
     return investments.reduce((total, investment) => total + investment.balance, 0);
   }
 
-  /**
-   * Agrupa investimentos por tipo
-   */
   async getInvestmentsSummaryByUserId(userId: string): Promise<any> {
     const investments = await this.getInvestmentsByUserId(userId);
     
@@ -251,5 +198,51 @@ export class InvestmentsService {
       byType: Object.values(byType),
       investments,
     };
+  }
+
+  async syncInvestmentsByItemId(itemId: string, userId: string): Promise<any> {
+    try {
+      const pluggyInvestments = await this.fetchInvestmentsFromPluggy(itemId);
+      
+      if (pluggyInvestments.length === 0) {
+        return {
+          message: 'Nenhum investimento encontrado para esta conexão',
+          totalInvestments: 0,
+          investmentsProcessed: 0,
+          investmentsSaved: 0,
+          investmentsUpdated: 0,
+        };
+      }
+  
+      let investmentsSaved = 0;
+      let investmentsUpdated = 0;
+  
+      for (const pluggyInvestment of pluggyInvestments) {
+        const existingInvestment = await this.investmentRepository.findOne({
+          externalId: pluggyInvestment.id,
+        });
+  
+        await this.upsertInvestment(pluggyInvestment, itemId, userId);
+  
+        if (existingInvestment) {
+          investmentsUpdated++;
+        } else {
+          investmentsSaved++;
+        }
+      }
+  
+      return {
+        message: 'Sincronização de investimentos concluída com sucesso',
+        totalInvestments: pluggyInvestments.length,
+        investmentsProcessed: pluggyInvestments.length,
+        data: pluggyInvestments,
+        investmentsSaved,
+        investmentsUpdated,
+      };
+  
+    } catch (error) {
+      console.error(`❌ Erro na sincronização manual de investimentos para itemId: ${itemId}:`, error);
+      throw new Error(`Falha na sincronização de investimentos: ${error.message}`);
+    }
   }
 }

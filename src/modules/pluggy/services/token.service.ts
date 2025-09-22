@@ -20,9 +20,6 @@ export class TokenService {
     });
   }
 
-  /**
-   * This is an example for getting a pluggy to token using the http api
-   */
   async getToken(userId: string, itemId?: string) {
     const { data: responseAuth } = await this.client.post<AuthResponse>(
       '/auth',
@@ -51,9 +48,6 @@ export class TokenService {
     return responseToken;
   }
 
-  /**
-   * This is an example for getting a pluggy to token using the sdk
-   */
   async getTokenWithSdk(userId: string, itemId?: string) {
     return this.pluggyClient.instance().createConnectToken(itemId, {
       webhookUrl: process.env.AUTH_CALLBACK,

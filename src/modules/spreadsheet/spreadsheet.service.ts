@@ -151,7 +151,6 @@ export class SpreadsheetService {
 
     const createdSpreadsheet = await this.create(userId, createData);
     
-    // Emite evento para recalcular com base em transações existentes
     this.eventEmitter.emit('spreadsheet.month.created', {
       userId,
       year,
@@ -330,7 +329,6 @@ export class SpreadsheetService {
   
     const savedSpreadsheet = await (spreadsheet as any).save();
   
-    // Criar uma transação “other” para income/expenses editados diretamente na planilha
     const targetDate = moment.utc([year, month - 1, day]).format('YYYY-MM-DD');
   
     if (dayData.income !== undefined) {
