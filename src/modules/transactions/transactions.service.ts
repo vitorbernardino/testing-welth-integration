@@ -32,22 +32,34 @@ export class TransactionsService {
     const connection = await this.connectionRepository.findOne({
       itemId: payload.itemId,
     });
-
+  
     if (!connection) {
       console.error(`❌ Conexão não encontrada para itemId: ${payload.itemId}`);
       return;
     }
-
+  
+    const { currentMonthStart, currentMonthEnd } = getCurrentMonthDateRange();
+  
     const { results: transactions } = await this.pluggyClient
       .instance()
       .fetchTransactions(payload.accountId, {
         createdAtFrom: payload.transactionsCreatedAtFrom,
       });
-
+  
+    const currentMonthTransactions = this.filterTransactionsByCurrentMonth(
+      transactions, 
+      currentMonthStart, 
+      currentMonthEnd
+    );
+  
+    if (currentMonthTransactions.length === 0) {
+      return;
+    }
+  
     await this.saveTransactions(
       payload.itemId,
       connection.userId.toString(),
-      transactions,
+      currentMonthTransactions,
     );
   }
 
@@ -56,22 +68,34 @@ export class TransactionsService {
     const connection = await this.connectionRepository.findOne({
       itemId: payload.itemId,
     });
-
+  
     if (!connection) {
       console.error(`❌ Conexão não encontrada para itemId: ${payload.itemId}`);
       return;
     }
-
+  
+    const { currentMonthStart, currentMonthEnd } = getCurrentMonthDateRange();
+  
     const { results: transactions } = await this.pluggyClient
       .instance()
       .fetchTransactions(payload.accountId, {
         ids: payload.transactionIds,
       });
-
+  
+    const currentMonthTransactions = this.filterTransactionsByCurrentMonth(
+      transactions, 
+      currentMonthStart, 
+      currentMonthEnd
+    );
+  
+    if (currentMonthTransactions.length === 0) {
+      return;
+    }
+  
     await this.saveTransactions(
       payload.itemId,
       connection.userId.toString(),
-      transactions,
+      currentMonthTransactions,
     );
   }
 
@@ -104,7 +128,7 @@ export class TransactionsService {
         return;
       }
 
-      const savedResult = await this.saveTransactions(
+      await this.saveTransactions(
         payload.itemId,
         payload.userId,
         currentMonthTransactions,

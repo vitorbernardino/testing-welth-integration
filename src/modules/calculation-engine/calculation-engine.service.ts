@@ -198,13 +198,13 @@ export class CalculationEngineService {
 
   private calculateDayIncome(dayTransactions: Transaction[]): number {
     return dayTransactions
-      .filter(transaction => transaction.type === 'income' || transaction.type === 'CREDIT')
+      .filter(transaction => transaction.type === 'income' || transaction.type === 'CREDIT' && transaction.category !== 'Credit card payment')
       .reduce((sum, transaction) => sum + Math.abs(transaction.amount), 0);
   }
   
   private calculateDayExpenses(dayTransactions: Transaction[]): number {
     return dayTransactions
-      .filter(transaction => transaction.type === 'expense' || transaction.type === 'DEBIT')
+      .filter(transaction => transaction.type === 'expense' || transaction.type === 'DEBIT' || transaction.category === 'Credit card payment')
       .reduce((sum, transaction) => sum + Math.abs(transaction.amount), 0);
   }
 
