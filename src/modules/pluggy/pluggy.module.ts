@@ -8,6 +8,7 @@ import { ConnectionRepository } from './repositories/connection.repository';
 import { MongooseModule } from '@nestjs/mongoose';
 import { Connection, ConnectionSchema } from './schemas/connection.schema';
 import { Transaction, TransactionSchema } from '../transactions/schemas/transaction.schema';
+import { ConnectionController } from './controllers/connection.controller';
 
 
 @Module({
@@ -16,7 +17,7 @@ import { Transaction, TransactionSchema } from '../transactions/schemas/transact
     MongooseModule.forFeature([{ name: Connection.name, schema: ConnectionSchema }]),
     MongooseModule.forFeature([{ name: Transaction.name, schema: TransactionSchema }]),
   ],
-  controllers: [WebhookController],
+  controllers: [WebhookController, ConnectionController],
   providers: [
     ConnectionRepository,
     TokenService,

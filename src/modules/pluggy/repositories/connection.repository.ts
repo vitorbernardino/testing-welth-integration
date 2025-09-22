@@ -22,4 +22,17 @@ export class ConnectionRepository {
   async findAll(where: FilterQuery<ConnectionDocument>) {
     return this.connectionModel.find(where).populate('userId').exec();
   }
+
+  async findById(connectionId: string): Promise<ConnectionDocument | null> {
+    return this.connectionModel.findById(connectionId).populate('userId').exec();
+  }
+
+  async deleteById(connectionId: string): Promise<boolean> {
+    const deleteResult = await this.connectionModel.findByIdAndDelete(connectionId).exec();
+    return deleteResult !== null;
+  }
+
+  async findByUserId(userId: string): Promise<ConnectionDocument[]> {
+    return this.connectionModel.find({ userId }).populate('userId').exec();
+  }
 }
