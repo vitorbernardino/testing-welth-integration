@@ -1,0 +1,17 @@
+import { IsString, MinLength, IsNotEmpty } from 'class-validator';
+
+export class ChangePasswordDto {
+  @IsNotEmpty()
+  @IsString()
+  currentPassword: string;
+
+  @IsNotEmpty()
+  @IsString()
+  @MinLength(6)
+  newPassword: string;
+
+  @IsNotEmpty()
+  @IsString()
+  @MinLength(6)
+  confirmNewPassword: string;
+}

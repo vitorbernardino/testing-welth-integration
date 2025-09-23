@@ -1,4 +1,4 @@
-import { Injectable, ConflictException, NotFoundException } from '@nestjs/common';
+import { Injectable, ConflictException, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import * as bcrypt from 'bcrypt';
@@ -8,6 +8,7 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Transaction, TransactionDocument } from '../transactions/schemas/transaction.schema';
 import { ConnectionRepository } from '../pluggy/repositories/connection.repository';
+import { ChangePasswordDto } from './dto/change-password.dto';
 
 @Injectable()
 export class UsersService {
@@ -122,5 +123,30 @@ export class UsersService {
   private sanitizeUser(user: UserDocument): User {
     const { password, ...result } = user.toObject();
     return result;
+  }
+
+  async changePassword(userId: string, changePasswordDto: ChangePasswordDto): Promise<User> {
+    const { currentPassword, newPassword, confirmNewPassword } = changePasswordDto;
+  
+    if (newPassword !== confirmNewPassword) {
+      throw new ConflictException('New password and confirmation do not match');
+    }
+  
+    const user = await this.userModel.findById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+  
+    const isCurrentPasswordValid = await bcrypt.compare(currentPassword, user.password);
+    if (!isCurrentPasswordValid) {
+      throw new UnauthorizedException('Current password is incorrect');
+    }
+  
+    const hashedNewPassword = await bcrypt.hash(newPassword, 12);
+  
+    user.password = hashedNewPassword;
+    const updatedUser = await user.save();
+  
+    return this.sanitizeUser(updatedUser);
   }
 }
