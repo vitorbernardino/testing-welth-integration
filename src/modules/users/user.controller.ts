@@ -6,6 +6,7 @@ import { UsersService } from './user.service';
 import { CurrentUser } from 'src/common/decorators/auth.decorator';
 import { ApiResponse } from 'src/common/interfaces/api-response.interface';
 import { TokenService } from '../pluggy/services/token.service';
+import { ChangePasswordDto } from './dto/change-password.dto';
 
 
 @Controller('users')
@@ -54,4 +55,18 @@ export class UsersController {
   async getTransactions(@Param('id') id: string) {
     return this.usersService.getTransactions(id);
   }
+
+  @Put('change-password')
+  async changePassword(
+    @CurrentUser() user: User,
+    @Body() changePasswordDto: ChangePasswordDto,
+  ): Promise<ApiResponse<User>> {
+    const updatedUser = await this.usersService.changePassword(user._id, changePasswordDto);
+    return {
+      success: true,
+      data: updatedUser,
+      message: 'Password changed successfully',
+      timestamp: new Date().toISOString(),
+    };
+}
 }
