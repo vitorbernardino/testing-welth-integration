@@ -637,4 +637,12 @@ export class TransactionsService {
       return transactionDate >= monthStart && transactionDate <= monthEnd;
     });
   }
+
+  async getAllCategories(): Promise<string[]> {
+    const categories = await this.transactionModel.distinct('category');
+    
+    return categories
+      .filter(category => category && category.trim() !== '')
+      .sort();
+  }
 }

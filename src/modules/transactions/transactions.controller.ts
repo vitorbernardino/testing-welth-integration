@@ -41,6 +41,18 @@ export class TransactionsController {
     };
   }
 
+  
+  @Get('categories')
+  async getAllCategories(): Promise<ApiResponse<string[]>> {
+    const categories = await this.transactionsService.getAllCategories();
+    return {
+      success: true,
+      data: categories,
+      message: 'Categories retrieved successfully',
+      timestamp: new Date().toISOString(),
+    };
+  }
+
   @Get()
   async findAll(
     @CurrentUser() user: User,
