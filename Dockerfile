@@ -6,7 +6,7 @@ FROM node:20-alpine AS builder
 WORKDIR /usr/src/app
 
 # Copia os arquivos de gerenciamento de dependências
-COPY package.json yarn.lock ./
+COPY package.json yarn.lock tsconfig.json ./
 
 # Instala as dependências do projeto usando Yarn
 RUN yarn install --frozen-lockfile
@@ -25,7 +25,7 @@ FROM node:20-alpine
 WORKDIR /usr/src/app
 
 # Copia os arquivos de dependência novamente
-COPY package.json yarn.lock ./
+COPY package.json yarn.lock tsconfig.json ./
 
 # Instala SOMENTE as dependências de produção para otimizar o tamanho da imagem
 RUN yarn install --production --frozen-lockfile
