@@ -22,7 +22,7 @@ async function bootstrap() {
 
   app.setGlobalPrefix('api/v1');
 
-  const port = process.env.PORT || 3001;
+  const port = process.env.PORT || 10000;
   await app.listen(port);
   console.log(`🚀 Welth API running on port ${port}`);
 }
