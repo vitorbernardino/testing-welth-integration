@@ -17,7 +17,7 @@ RUN apk add --no-cache python3 make g++ git
 WORKDIR /app
 
 # Copiar arquivos de dependências e configuração primeiro (melhor cache)
-COPY package.json yarn.lock tsconfig*.json ./
+COPY package.json yarn.lock tsconfig.json ./
 
 # Instalar TODAS as dependências (dev + produção) - apenas uma vez
 RUN yarn install --frozen-lockfile
