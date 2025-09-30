@@ -75,7 +75,7 @@ Configure as seguintes variáveis no arquivo `.env`:
 - ✅ **Build de produção** apenas
 - ✅ **Dependências pré-compiladas** copiadas entre stages para evitar recompilação
 - ✅ **Healthcheck integrado** para monitoramento automático
-- ✅ **Arquivos de configuração** copiados corretamente para evitar erros de build
+- ✅ **Arquivos essenciais** copiados corretamente para evitar erros de build
 
 ## Portas
 

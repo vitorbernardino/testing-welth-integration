@@ -17,7 +17,7 @@ RUN apk add --no-cache python3 make g++ git
 WORKDIR /app
 
 # Copiar arquivos de dependências e configuração primeiro (melhor cache)
-COPY package.json yarn.lock tsconfig*.json nest-cli.json ./
+COPY package.json yarn.lock tsconfig*.json ./
 
 # Instalar TODAS as dependências (dev + produção) - apenas uma vez
 RUN yarn install --frozen-lockfile
@@ -56,7 +56,7 @@ WORKDIR /app
 RUN mkdir -p /tmp && chmod 777 /tmp
 
 # Copiar arquivos essenciais para referência
-COPY package.json tsconfig*.json ./
+COPY package.json ./
 
 # Copiar node_modules já compilado do builder (contém dev + produção)
 COPY --from=builder --chown=nestjs:nodejs /app/node_modules ./node_modules
