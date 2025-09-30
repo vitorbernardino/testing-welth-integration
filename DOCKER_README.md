@@ -73,6 +73,7 @@ Configure as seguintes variáveis no arquivo `.env`:
 - ✅ **Dumb-init** para gerenciamento correto de sinais
 - ✅ **Cache de dependências** otimizado
 - ✅ **Build de produção** apenas
+- ✅ **Dependências pré-compiladas** copiadas entre stages para evitar recompilação
 
 ## Portas
 

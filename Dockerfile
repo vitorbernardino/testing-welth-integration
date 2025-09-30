@@ -1,30 +1,49 @@
-# Multi-stage build para otimização
+# ===============================
+# Multi-stage build otimizado
+# ===============================
+
 # Stage 1: Build da aplicação
 FROM node:20-alpine AS builder
 
+# Labels para metadados
+LABEL stage=builder \
+      maintainer="Welth Team" \
+      description="Welth Finance Management API - Build Stage"
+
 # Instalar dependências do sistema necessárias para compilação
-RUN apk add --no-cache python3 make g++
+RUN apk add --no-cache python3 make g++ git
 
 # Definir diretório de trabalho
 WORKDIR /app
 
-# Copiar arquivos de dependências
+# Copiar arquivos de dependências primeiro (melhor cache)
 COPY package.json yarn.lock ./
 
-# Instalar dependências (incluindo devDependencies para build)
+# Instalar TODAS as dependências (dev + produção) - apenas uma vez
 RUN yarn install --frozen-lockfile
 
 # Copiar código fonte
 COPY . .
 
-# Build da aplicação
+# Build da aplicação TypeScript
 RUN yarn build
 
+# ===============================
 # Stage 2: Runtime da aplicação
+# ===============================
+
 FROM node:20-alpine AS runtime
 
-# Instalar dependências de produção apenas
-RUN apk add --no-cache dumb-init
+# Labels para metadados
+LABEL stage=runtime \
+      maintainer="Welth Team" \
+      description="Welth Finance Management API - Production Runtime"
+
+# Instalar apenas ferramentas necessárias para produção
+RUN apk add --no-cache \
+    dumb-init \
+    curl \
+    && rm -rf /var/cache/apk/*
 
 # Criar usuário não-root para segurança
 RUN addgroup -g 1001 -S nodejs && \
@@ -33,25 +52,40 @@ RUN addgroup -g 1001 -S nodejs && \
 # Definir diretório de trabalho
 WORKDIR /app
 
-# Copiar package.json e yarn.lock
-COPY package.json yarn.lock ./
+# Criar diretório para arquivos temporários
+RUN mkdir -p /tmp && chmod 777 /tmp
 
-# Instalar apenas dependências de produção
-RUN yarn install --frozen-lockfile --production && \
-    yarn cache clean
+# Copiar package.json para referência
+COPY package.json ./
 
-# Copiar arquivos compilados do stage anterior
-COPY --from=builder /app/dist ./dist
+# Copiar node_modules já compilado do builder (contém dev + produção)
+COPY --from=builder --chown=nestjs:nodejs /app/node_modules ./node_modules
 
-# Alterar ownership dos arquivos para o usuário nodejs
+# Copiar arquivos compilados do builder
+COPY --from=builder --chown=nestjs:nodejs /app/dist ./dist
+
+# Remover apenas os devDependencies do node_modules (mantém produção)
+RUN npm prune --production && \
+    yarn cache clean && \
+    rm -rf /tmp/*
+
+# Alterar ownership de todos os arquivos para o usuário nodejs
 RUN chown -R nestjs:nodejs /app
+
+# Trocar para usuário não-root
 USER nestjs
 
 # Expor porta da aplicação
 EXPOSE 10000
 
-# Definir variável de ambiente para produção
-ENV NODE_ENV=production
+# Definir variáveis de ambiente para produção
+ENV NODE_ENV=production \
+    PORT=10000 \
+    NODE_OPTIONS="--max-old-space-size=4096"
+
+# Healthcheck para monitorar se a aplicação está rodando
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:10000/api/v1/health || exit 1
 
 # Usar dumb-init para gerenciar sinais corretamente
 ENTRYPOINT ["/usr/bin/dumb-init", "--"]
