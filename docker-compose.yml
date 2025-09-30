@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    ports:
+      - "10000:10000"
+    environment:
+      - NODE_ENV=production
+      - PORT=10000
+      # Adicione outras variáveis de ambiente necessárias aqui
+      # - MONGODB_URI=mongodb://mongodb:27017/welth
+      # - JWT_SECRET=your-secret-key
+    restart: unless-stopped
+    # Para conectar com MongoDB, descomente as linhas abaixo:
+    # depends_on:
+    #   - mongodb
+
+  # Exemplo de serviço MongoDB (opcional)
+  # mongodb:
+  #   image: mongo:7-jammy
+  #   ports:
+  #     - "27017:27017"
+  #   environment:
+  #     - MONGO_INITDB_DATABASE=welth
+  #   volumes:
+  #     - mongodb_data:/data/db
+  #   restart: unless-stopped
+
+# volumes:
+#   mongodb_data:
