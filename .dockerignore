@@ -60,8 +60,6 @@ docs
 eslint.config.mjs
 jest.config.js
 nest-cli.json
-tsconfig.json
-tsconfig.build.json
 
 # Cache
 .npm
