@@ -74,10 +74,26 @@ Configure as seguintes variáveis no arquivo `.env`:
 - ✅ **Cache de dependências** otimizado
 - ✅ **Build de produção** apenas
 - ✅ **Dependências pré-compiladas** copiadas entre stages para evitar recompilação
+- ✅ **Healthcheck integrado** para monitoramento automático
+- ✅ **Arquivos de configuração** copiados corretamente para evitar erros de build
 
 ## Portas
 
 - **Aplicação**: 10000 (porta padrão do projeto)
+
+## Health Check
+
+A aplicação inclui um endpoint de health check em `/api/v1/health` que retorna:
+
+```json
+{
+  "status": "ok",
+  "timestamp": "2024-01-01T00:00:00.000Z",
+  "uptime": 123.456
+}
+```
+
+O Docker configura automaticamente um healthcheck que verifica este endpoint a cada 30 segundos.
 
 ## Logs
 

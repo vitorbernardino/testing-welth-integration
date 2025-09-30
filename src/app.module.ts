@@ -12,6 +12,7 @@ import { UsersModule } from './modules/users/user.module';
 import { TasksModule } from './modules/tasks/monthly-tasks.module';
 import { PluggyModule } from './modules/pluggy/pluggy.module';
 import { InvestmentsModule } from './modules/investment/investment.module';
+import { HealthModule } from './health.module';
 
 @Module({
   imports: [
@@ -30,7 +31,8 @@ import { InvestmentsModule } from './modules/investment/investment.module';
     DashboardModule,
     TasksModule,
     PluggyModule,
-    InvestmentsModule
+    InvestmentsModule,
+    HealthModule
   ],
 })
 export class AppModule {}

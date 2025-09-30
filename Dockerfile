@@ -16,8 +16,8 @@ RUN apk add --no-cache python3 make g++ git
 # Definir diretório de trabalho
 WORKDIR /app
 
-# Copiar arquivos de dependências primeiro (melhor cache)
-COPY package.json yarn.lock ./
+# Copiar arquivos de dependências e configuração primeiro (melhor cache)
+COPY package.json yarn.lock tsconfig*.json nest-cli.json ./
 
 # Instalar TODAS as dependências (dev + produção) - apenas uma vez
 RUN yarn install --frozen-lockfile
@@ -55,8 +55,8 @@ WORKDIR /app
 # Criar diretório para arquivos temporários
 RUN mkdir -p /tmp && chmod 777 /tmp
 
-# Copiar package.json para referência
-COPY package.json ./
+# Copiar arquivos essenciais para referência
+COPY package.json tsconfig*.json ./
 
 # Copiar node_modules já compilado do builder (contém dev + produção)
 COPY --from=builder --chown=nestjs:nodejs /app/node_modules ./node_modules
@@ -84,7 +84,7 @@ ENV NODE_ENV=production \
     NODE_OPTIONS="--max-old-space-size=4096"
 
 # Healthcheck para monitorar se a aplicação está rodando
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
     CMD curl -f http://localhost:10000/api/v1/health || exit 1
 
 # Usar dumb-init para gerenciar sinais corretamente
