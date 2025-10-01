@@ -5,11 +5,13 @@ import * as bcrypt from 'bcrypt';
 import { User, UserDocument } from './schemas/user.schema';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 
 @Injectable()
 export class UsersService {
   constructor(
     @InjectModel(User.name) private userModel: Model<UserDocument>,
+    private eventEmitter: EventEmitter2,
   ) {}
 
   async create(createUserDto: CreateUserDto): Promise<User> {
@@ -25,7 +27,17 @@ export class UsersService {
     });
 
     const savedUser = await user.save();
+
+    this.eventEmitter.emit('user.created', {
+      userId: savedUser._id.toString(),
+    });
+
     return this.sanitizeUser(savedUser);
+  }
+
+  async findAll(): Promise<User[]> {
+    const users = await this.userModel.find().exec();
+    return users.map(user => this.sanitizeUser(user));
   }
 
   async findById(id: string): Promise<User> {

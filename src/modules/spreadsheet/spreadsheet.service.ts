@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import { EventEmitter2 } from '@nestjs/event-emitter';
+import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
 import { UpdateSpreadsheetDataDto } from './dto/update-spreadsheet-data.dto';
 import { CreateSpreadsheetDataDto } from './dto/create-spreadsheet-data.dto';
 import * as moment from 'moment';
@@ -9,8 +9,10 @@ import { DailyData, SpreadsheetData, SpreadsheetDataDocument } from './schemas/s
 import { TransactionsService } from '../transactions/transactions.service';
 import { TransactionType } from '../transactions/schemas/transaction.schema';
 
-const DEFAULT_MONTHS_TO_GENERATE = 10;
+const INITIAL_PROJECTION_MONTHS = 10;
+const PROJECTION_HORIZON_MONTHS = 10; 
 const PRECISION_DECIMAL_PLACES = 2;
+
 
 @Injectable()
 export class SpreadsheetService {
@@ -20,11 +22,16 @@ export class SpreadsheetService {
     private transactionsService: TransactionsService,
   ) {}
 
+  @OnEvent('user.created')
+  async handleUserCreated(payload: { userId: string }) {
+    await this.initializeUserSpreadsheets(payload.userId);
+  }
+
   async initializeUserSpreadsheets(userId: string): Promise<SpreadsheetData[]> {
     const currentDate = moment();
     const generatedSpreadsheets: SpreadsheetData[] = [];
 
-    for (let monthOffset = 0; monthOffset < DEFAULT_MONTHS_TO_GENERATE; monthOffset++) {
+    for (let monthOffset = 0; monthOffset < INITIAL_PROJECTION_MONTHS; monthOffset++) {
       const targetDate = currentDate.clone().add(monthOffset, 'months');
       const year = targetDate.year();
       const month = targetDate.month() + 1;
@@ -40,6 +47,50 @@ export class SpreadsheetService {
     }
 
     return generatedSpreadsheets;
+  }
+
+  async ensureProjectionHorizon(userId: string): Promise<void> {
+    const currentDate = moment.utc().startOf('month');
+    const horizonEndDate = currentDate.clone().add(PROJECTION_HORIZON_MONTHS - 1, 'months');
+    
+    let lastSpreadsheet = await this.getLastSpreadsheetForUser(userId);
+    let nextDateToCreate: moment.Moment;
+
+    if (lastSpreadsheet) {
+        nextDateToCreate = moment.utc([lastSpreadsheet.year, lastSpreadsheet.month - 1]).add(1, 'month');
+    } else {
+        nextDateToCreate = currentDate;
+    }
+    
+    while (nextDateToCreate.isSameOrBefore(horizonEndDate, 'month')) {
+        const year = nextDateToCreate.year();
+        const month = nextDateToCreate.month() + 1;
+
+        const existing = await this.findByUserAndMonthOptional(userId, year, month);
+        if (!existing) {
+            await this.createEmptyMonthSpreadsheet(userId, year, month);
+        }
+        
+        nextDateToCreate.add(1, 'month');
+    }
+  }
+
+  async updateHistoricalFlagForPastMonths(userId: string): Promise<void> {
+    const now = moment.utc();
+    const currentYear = now.year();
+    const currentMonth = now.month() + 1;
+
+    await this.spreadsheetModel.updateMany(
+        {
+            userId: new Types.ObjectId(userId),
+            isHistorical: false,
+            $or: [
+                { year: { $lt: currentYear } },
+                { year: currentYear, month: { $lt: currentMonth } }
+            ]
+        },
+        { $set: { isHistorical: true } }
+    );
   }
 
   async addNextMonth(userId: string): Promise<SpreadsheetData> {
@@ -192,7 +243,21 @@ export class SpreadsheetService {
   }
 
   async getNext10Months(userId: string): Promise<SpreadsheetData[]> {
-    return this.getAllUserSpreadsheets(userId);
+    const now = moment.utc();
+    const currentYear = now.year();
+    const currentMonth = now.month() + 1;
+
+    return this.spreadsheetModel
+      .find({ 
+        userId: new Types.ObjectId(userId),
+        isHistorical: false,
+        $or: [
+            { year: { $gt: currentYear } },
+            { year: currentYear, month: { $gte: currentMonth } }
+        ]
+      })
+      .sort({ year: 1, month: 1 })
+      .exec();
   }
 
   async update(

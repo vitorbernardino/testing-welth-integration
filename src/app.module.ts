@@ -12,6 +12,7 @@ import { EmergencyReserveModule } from './modules/emergency-reserve/emergency-re
 import { InvestmentModule } from './modules/investment/investment.module';
 import { SpreadsheetModule } from './modules/spreadsheet/spreadsheet.module';
 import { UsersModule } from './modules/users/user.module';
+import { TasksModule } from './modules/tasks/monthly-tasks.module';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { UsersModule } from './modules/users/user.module';
     InvestmentModule,
     CalculationEngineModule,
     DashboardModule,
+    TasksModule
   ],
 })
 export class AppModule {}

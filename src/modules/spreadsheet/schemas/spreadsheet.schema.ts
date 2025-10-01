@@ -60,6 +60,9 @@ export class SpreadsheetData {
   @Prop({ type: MonthlyProjectionsSchema })
   monthlyProjections: MonthlyProjections;
 
+  @Prop({ type: Boolean, default: false, index: true })
+  isHistorical: boolean;
+
   @Prop()
   createdAt: Date;
 
