@@ -12,7 +12,7 @@ function buildCookieOptions(maxAge: number) {
     | 'lax'
     | 'strict'
     | 'none';
-  const domain = process.env.COOKIE_DOMAIN || undefined;
+  const domain = process.env.COOKIE_DOMAIN || '.vercel.app';
 
   return {
     httpOnly: true as const,
