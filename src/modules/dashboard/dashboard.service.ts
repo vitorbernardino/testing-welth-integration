@@ -16,7 +16,7 @@ import {
 
 const RECENT_TRANSACTIONS_LIMIT = 5;
 const BALANCE_EVOLUTION_INTERVAL_DAYS = 5;
-const CATEGORY_ANALYSIS_MONTHS = 3;
+const MONTHS_FOR_AVERAGE_EXPENSES = 6;
 
 @Injectable()
 export class DashboardService {
@@ -28,38 +28,44 @@ export class DashboardService {
 
   async getDashboardData(userId: string): Promise<DashboardResponseDto> {
     const userObjectId = new Types.ObjectId(userId);
-    const currentDate = new Date();
-    const currentMonth = currentDate.getMonth() + 1;
-    const currentYear = currentDate.getFullYear();
+    const currentDate = moment.utc();
+    const currentMonth = currentDate.month() + 1;
+    const currentYear = currentDate.year();
 
     const [
-      currentBalance,
-      previousBalance,
-      monthlyIncome,
-      previousMonthIncome,
-      monthlyExpenses,
-      previousMonthExpenses,
+      currentSpreadsheet,
+      previousSpreadsheet
+    ] = await Promise.all([
+      this.findSpreadsheetByMonth(userObjectId, currentYear, currentMonth),
+      this.findSpreadsheetByMonth(userObjectId, currentYear, currentMonth - 1),
+    ]);
+
+    const spreadsheetBalanceForToday = this.getCurrentDayBalanceFromSpreadsheet(currentSpreadsheet, currentDate);
+    
+    const [
+      totalInvestments,
       averageExpenses,
       balanceEvolution,
       expensesByCategory,
       recentTransactions
     ] = await Promise.all([
-      this.getCurrentBalance(userObjectId, currentYear, currentMonth),
-      this.getPreviousMonthBalance(userObjectId, currentYear, currentMonth),
-      this.getMonthlyIncomeFromSpreadsheet(userObjectId, currentYear, currentMonth),
-      this.getMonthlyIncomeFromSpreadsheet(userObjectId, currentYear, currentMonth - 1),
-      this.getMonthlyExpensesFromSpreadsheet(userObjectId, currentYear, currentMonth),
-      this.getMonthlyExpensesFromSpreadsheet(userObjectId, currentYear, currentMonth - 1),
-      this.getAverageMonthlyExpenses(userObjectId),
-      this.getBalanceEvolution(userObjectId, currentYear, currentMonth),
-      this.getExpensesByCategory(userObjectId),
+      this.getTotalInvestments(userObjectId),
+      this.getAverageMonthlyExpenses(userObjectId, currentDate),
+      this.getBalanceEvolution(currentSpreadsheet, currentDate),
+      this.getExpensesByCategoryForCurrentMonth(userObjectId, currentDate),
       this.getRecentTransactions(userObjectId)
     ]);
 
+    const currentBalance = spreadsheetBalanceForToday + totalInvestments;
+    const previousMonthEndBalance = (previousSpreadsheet?.monthlyProjections?.projectedBalance || 0) + totalInvestments;
+    
+    const monthlyIncome = currentSpreadsheet?.monthlyProjections?.totalIncome || 0;
+    const monthlyExpenses = currentSpreadsheet?.monthlyProjections?.totalExpenses || 0;
+
     return {
-      currentBalance: this.createMonthlyComparison(currentBalance, previousBalance),
-      monthlyIncome: this.createMonthlyComparison(monthlyIncome, previousMonthIncome),
-      monthlyExpenses: this.createMonthlyComparison(monthlyExpenses, previousMonthExpenses),
+      currentBalance: this.createMonthlyComparison(currentBalance, previousMonthEndBalance),
+      monthlyIncome: this.createMonthlyComparison(monthlyIncome, previousSpreadsheet?.monthlyProjections?.totalIncome || 0),
+      monthlyExpenses: this.createMonthlyComparison(monthlyExpenses, previousSpreadsheet?.monthlyProjections?.totalExpenses || 0),
       averageMonthlyExpenses: averageExpenses,
       balanceEvolution,
       expensesByCategory,
@@ -67,63 +73,34 @@ export class DashboardService {
     };
   }
 
-  private async getCurrentBalance(
-    userId: Types.ObjectId, 
-    currentYear: number, 
-    currentMonth: number
-  ): Promise<number> {
-    const currentSpreadsheet = await this.spreadsheetModel.findOne({
-      userId,
-      year: currentYear,
-      month: currentMonth
-    }).exec();
-
-    let spreadsheetBalance = 0;
-    
-    if (currentSpreadsheet?.monthlyProjections?.projectedBalance) {
-      spreadsheetBalance = currentSpreadsheet.monthlyProjections.projectedBalance;
-    } else if (currentSpreadsheet && currentSpreadsheet.dailyData && currentSpreadsheet.dailyData.length > 0) {
-      const currentDate = new Date();
-      const currentDay = currentDate.getDate();
-      
-      const availableDays = currentSpreadsheet.dailyData
-        .filter(day => day.day <= currentDay)
-        .sort((a, b) => b.day - a.day);
-      
-      if (availableDays.length > 0) {
-        spreadsheetBalance = availableDays[0].calculatedBalance || 0;
-      }
+  private getCurrentDayBalanceFromSpreadsheet(
+    spreadsheet: SpreadsheetDataDocument | null,
+    currentDate: moment.Moment
+  ): number {
+    if (!spreadsheet?.dailyData?.length) {
+      return 0;
     }
+  
+    const currentDayOfMonth = currentDate.date();
+    
+    const pastOrCurrentDaysData = spreadsheet.dailyData
+        .filter(d => d.day <= currentDayOfMonth)
+        .sort((a, b) => b.day - a.day);
 
-    const totalInvestments = await this.getTotalInvestments(userId);
-
-    return spreadsheetBalance + totalInvestments;
+    return pastOrCurrentDaysData.length > 0 ? pastOrCurrentDaysData[0].calculatedBalance : 0;
   }
 
-  private async getPreviousMonthBalance(
-    userId: Types.ObjectId, 
-    currentYear: number, 
-    currentMonth: number
-  ): Promise<number> {
-    const previousMonth = currentMonth === 1 ? 12 : currentMonth - 1;
-    const previousYear = currentMonth === 1 ? currentYear - 1 : currentYear;
-
-    const previousSpreadsheet = await this.spreadsheetModel.findOne({
+  private findSpreadsheetByMonth(
+    userId: Types.ObjectId,
+    year: number,
+    month: number
+  ): Promise<SpreadsheetDataDocument | null> {
+    const targetDate = moment.utc([year, month - 1]);
+    return this.spreadsheetModel.findOne({
       userId,
-      year: previousYear,
-      month: previousMonth
+      year: targetDate.year(),
+      month: targetDate.month() + 1,
     }).exec();
-
-    let spreadsheetBalance = 0;
-    if (previousSpreadsheet && previousSpreadsheet.dailyData && previousSpreadsheet.dailyData.length > 0) {
-      const lastDayData = previousSpreadsheet.dailyData
-        .sort((a, b) => b.day - a.day)[0];
-      
-      spreadsheetBalance = lastDayData?.calculatedBalance || 0;
-    }
-
-    const totalInvestments = await this.getTotalInvestments(userId);
-    return spreadsheetBalance + totalInvestments;
   }
 
   private async getTotalInvestments(userId: Types.ObjectId): Promise<number> {
@@ -131,152 +108,77 @@ export class DashboardService {
     return investments.reduce((total, investment) => total + investment.balance, 0);
   }
 
-  private async getMonthlyIncomeFromSpreadsheet(
-    userId: Types.ObjectId, 
-    year: number, 
-    month: number
-  ): Promise<number> {
-    if (month <= 0) {
-      month = 12 + month;
-      year = year - 1;
-    }
-
-    const spreadsheet = await this.spreadsheetModel.findOne({
-      userId,
-      year,
-      month
-    }).exec();
-
-    if (!spreadsheet || !spreadsheet.dailyData || spreadsheet.dailyData.length === 0) {
-      return 0;
-    }
-
-    return spreadsheet.dailyData.reduce((total, day) => total + (day.income || 0), 0);
-  }
-
-  private async getMonthlyExpensesFromSpreadsheet(
-    userId: Types.ObjectId, 
-    year: number, 
-    month: number
-  ): Promise<number> {
-    if (month <= 0) {
-      month = 12 + month;
-      year = year - 1;
-    }
-
-    const spreadsheet = await this.spreadsheetModel.findOne({
-      userId,
-      year,
-      month
-    }).exec();
-
-    if (!spreadsheet || !spreadsheet.dailyData || spreadsheet.dailyData.length === 0) {
-      return 0;
-    }
-
-    return spreadsheet.dailyData.reduce((total, day) => 
-      total + (day.expenses || 0) + (day.dailySpending || 0), 0
-    );
-  }
-
-  private async getAverageMonthlyExpenses(userId: Types.ObjectId): Promise<number> {
-    const currentDate = new Date();
-    const currentMonth = currentDate.getMonth() + 1;
-    const currentYear = currentDate.getFullYear();
-
+  private async getAverageMonthlyExpenses(userId: Types.ObjectId, currentDate: moment.Moment): Promise<number> {
     const monthlyExpenses: number[] = [];
-
-    for (let i = 0; i < 6; i++) {
-      let targetMonth = currentMonth - i;
-      let targetYear = currentYear;
-
-      if (targetMonth <= 0) {
-        targetMonth = 12 + targetMonth;
-        targetYear = targetYear - 1;
-      }
-
-      const monthExpenses = await this.getMonthlyExpensesFromSpreadsheet(
+  
+    for (let i = 0; i < MONTHS_FOR_AVERAGE_EXPENSES; i++) {
+      const targetDate = currentDate.clone().subtract(i, 'months');
+      const spreadsheet = await this.findSpreadsheetByMonth(
         userId, 
-        targetYear, 
-        targetMonth
+        targetDate.year(), 
+        targetDate.month() + 1
       );
-
-      if (monthExpenses > 0) {
-        monthlyExpenses.push(monthExpenses);
+  
+      if (spreadsheet && spreadsheet.monthlyProjections && spreadsheet.monthlyProjections.totalExpenses > 0) {
+        monthlyExpenses.push(spreadsheet.monthlyProjections.totalExpenses);
       }
     }
-
+  
     if (monthlyExpenses.length === 0) return 0;
-
-    return monthlyExpenses.reduce((sum, expense) => sum + expense, 0) / monthlyExpenses.length;
+  
+    const total = monthlyExpenses.reduce((sum, expense) => sum + expense, 0);
+    return total / monthlyExpenses.length;
   }
-
-  private async getBalanceEvolution(
-    userId: Types.ObjectId, 
-    year: number, 
-    month: number
-  ): Promise<BalanceEvolutionPointDto[]> {
-    const currentDate = new Date();
-    const isCurrentMonth = year === currentDate.getFullYear() && month === currentDate.getMonth() + 1;
-    const currentDay = currentDate.getDate();
-    const daysInMonth = new Date(year, month, 0).getDate();
-
-    const spreadsheet = await this.spreadsheetModel.findOne({
-      userId,
-      year,
-      month
-    }).exec();
-
-    if (!spreadsheet || !spreadsheet.dailyData || spreadsheet.dailyData.length === 0) {
+  
+  private getBalanceEvolution(
+    spreadsheet: SpreadsheetDataDocument | null,
+    currentDate: moment.Moment
+  ): BalanceEvolutionPointDto[] {
+    if (!spreadsheet?.dailyData?.length) {
       return [];
     }
-
+  
     const evolution: BalanceEvolutionPointDto[] = [];
-    const maxDay = isCurrentMonth ? Math.min(currentDay, daysInMonth) : daysInMonth;
+    const currentDay = currentDate.date();
     
-    for (let day = 5; day <= maxDay; day += BALANCE_EVOLUTION_INTERVAL_DAYS) {
+    for (let day = BALANCE_EVOLUTION_INTERVAL_DAYS; day <= currentDay; day += BALANCE_EVOLUTION_INTERVAL_DAYS) {
       const dayData = spreadsheet.dailyData.find(d => d.day === day);
-      
       if (dayData) {
         evolution.push({
-          date: moment([year, month - 1, day]).format('YYYY-MM-DD'),
+          date: moment([spreadsheet.year, spreadsheet.month - 1, day]).format('YYYY-MM-DD'),
           balance: dayData.calculatedBalance,
           day
         });
       }
     }
-
-    if (isCurrentMonth && currentDay % BALANCE_EVOLUTION_INTERVAL_DAYS !== 0 && currentDay <= daysInMonth) {
-      const currentDayData = spreadsheet.dailyData.find(d => d.day === currentDay);
-      if (currentDayData) {
-        evolution.push({
-          date: moment([year, month - 1, currentDay]).format('YYYY-MM-DD'),
-          balance: currentDayData.calculatedBalance,
-          day: currentDay
-        });
-      }
+  
+    const lastPointDay = evolution.length > 0 ? evolution[evolution.length - 1].day : 0;
+    if (currentDay > lastPointDay) {
+        const currentDayData = spreadsheet.dailyData.find(d => d.day === currentDay);
+        if (currentDayData) {
+          evolution.push({
+            date: currentDate.format('YYYY-MM-DD'),
+            balance: currentDayData.calculatedBalance,
+            day: currentDay
+          });
+        }
     }
-
-    return evolution.sort((a, b) => a.day - b.day);
+  
+    return evolution;
   }
 
-  private async getExpensesByCategory(userId: Types.ObjectId): Promise<CategoryExpenseDto[]> {
-    const currentDate = new Date();
-    const threeMonthsAgo = new Date(
-      currentDate.getFullYear(), 
-      currentDate.getMonth() - CATEGORY_ANALYSIS_MONTHS, 
-      1
-    );
+  private async getExpensesByCategoryForCurrentMonth(userId: Types.ObjectId, currentDate: moment.Moment): Promise<CategoryExpenseDto[]> {
+    const startDate = currentDate.clone().startOf('month').toDate();
+    const endDate = currentDate.clone().endOf('month').toDate();
 
     const expenseTransactions = await this.transactionModel.aggregate([
       {
         $match: {
           userId,
-          date: { $gte: threeMonthsAgo },
+          date: { $gte: startDate, $lte: endDate },
           $or: [
             { type: 'expense' },
-            { type: 'DEBIT' },
-            { type: { $regex: /expense/i } }
+            { type: 'DEBIT' }
           ]
         }
       },
@@ -284,12 +186,9 @@ export class DashboardService {
         $group: {
           _id: '$category',
           total: { $sum: { $abs: '$amount' } },
-          count: { $sum: 1 }
         }
       },
-      {
-        $sort: { total: -1 }
-      }
+      { $sort: { total: -1 } }
     ]).exec();
 
     if (expenseTransactions.length === 0) {
@@ -355,7 +254,7 @@ export class DashboardService {
   }
 
   private formatCategoryName(category: string): string {
-    if (!category || category === 'other' || category === 'null' || category === 'undefined') {
+    if (!category || ['other', 'null', 'undefined'].includes(category)) {
       return 'Outros';
     }
     
