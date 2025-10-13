@@ -17,12 +17,14 @@ export class ConnectionService {
       async onItemInitiated(payload: WebhookPayloadItem) {
         const item = await this.pluggyClient.instance().fetchItem(payload.itemId);
     
-        await this.connectionRepository.create({
-          itemId: payload.itemId,
-          name: item.connector.name,
-          status: item.status,
-          userId: item.clientUserId || '',
-        });
+        await this.connectionRepository.upsertByUserIdAndConnectorName(
+          item.clientUserId || '',
+          item.connector.name,
+          {
+            itemId: payload.itemId,
+            status: item.status,
+          },
+        );
       }
 
     @OnEvent('item/created')
@@ -35,25 +37,15 @@ export class ConnectionService {
           return;
         }
 
-          const existingConnection = await this.connectionRepository.findOne({
+        await this.connectionRepository.upsertByUserIdAndConnectorName(
+          item.clientUserId,
+          item.connector.name,
+          {
             itemId: payload.itemId,
-          });
-
-          if (!existingConnection) {
-            await this.connectionRepository.create({
-              itemId: payload.itemId,
-              name: item.connector.name,
-              status: item.status,
-              userId: item.clientUserId,
-            });
-          } else {
-            this.eventEmitter.emit('connection.ready', {
-              itemId: payload.itemId,
-              userId: item.clientUserId,
-            });
-            return;
-          }
-
+            status: item.status,
+          },
+        );
+        
         const { results: accounts } = await this.pluggyClient
           .instance()
           .fetchAccounts(payload.itemId);
