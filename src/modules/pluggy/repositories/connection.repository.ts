@@ -35,4 +35,21 @@ export class ConnectionRepository {
   async findByUserId(userId: string): Promise<ConnectionDocument[]> {
     return this.connectionModel.find({ userId }).populate('userId').exec();
   }
+
+  async upsertByUserIdAndConnectorName(
+    userId: string,
+    connectorName: string,
+    connectionData: Partial<Connection>,
+  ): Promise<ConnectionDocument> {
+    return this.connectionModel
+      .findOneAndUpdate(
+        { userId, name: connectorName },
+        { ...connectionData, userId, name: connectorName },
+        {
+          upsert: true,
+          new: true,
+        },
+      )
+      .exec();
+  }
 }
