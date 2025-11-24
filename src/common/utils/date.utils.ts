@@ -32,14 +32,18 @@ export function getCurrentMonthDateRange(): {
     return targetDate >= currentMonthStart && targetDate <= currentMonthEnd;
   }
 
-export function normalizeDateToBrazilianTimezone(date: string | Date | moment.Moment): Date {
-  const brazilianMoment = moment.tz(date, BRAZIL_TIMEZONE);
-  
-  const normalizedBrazilianMoment = brazilianMoment.startOf('day');
-  
-  return normalizedBrazilianMoment.toDate();
-}
+  export function normalizeDateToBrazilianTimezone(date: string | Date | moment.Moment): Date {
+    const momentDate = moment.utc(date);
+    
+    const year = momentDate.year();
+    const month = momentDate.month(); // 0-11
+    const day = momentDate.date();
 
+    const brazilianMoment = moment.tz([year, month, day], BRAZIL_TIMEZONE).startOf('day');
+    
+    return brazilianMoment.toDate();
+  }
+ 
 export function formatDateInBrazilianTimezone(date: string | Date | moment.Moment): string {
   return moment.tz(date, BRAZIL_TIMEZONE).format('YYYY-MM-DD HH:mm:ss [BRT]');
 }
